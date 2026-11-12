@@ -379,11 +379,14 @@ IRON = rgb("#5d6068")
 BRASS = rgb("#d2a647")
 
 
-def jambs(a, w, h, color=FRAME, depth=18):
-    """The door frame's posts at both ends and the threshold between them."""
+def jambs(a, w, h, color=FRAME, depth=18, reach=None):
+    """The door frame's posts at both ends and the threshold between them,
+    on the wall line (y = h / 2: the portal is drawn centred on the wall).
+    `reach` is how far the posts stand off the line (default: to the edges)."""
+    reach = h / 2 - 8 if reach is None else reach
     a.shape(rect(4, h / 2 - 6, w - 4, h / 2 + 6), shade(color, 0.25), outline=DETAIL, corner=2, depth=2, mottle=0)
     for x0 in (2, w - 2 - depth):
-        a.shape(rect(x0, 8, x0 + depth, h - 8), color, outline=DETAIL * 1.4, corner=3, depth=4, light_k=0.35)
+        a.shape(rect(x0, h / 2 - reach, x0 + depth, h / 2 + reach), color, outline=DETAIL * 1.4, corner=3, depth=4, light_k=0.35)
 
 
 def leaf(a, x0, x1, h, color=DOOR, bands=True, handle_at=None, thick=16, studs=False):
@@ -444,25 +447,26 @@ def double_door(seed=1402, color=DOOR, w=SW, h=84, studs=False):
 def open_door(seed=1403, double=False):
     w = SW if double else T
     span = (w - 40) / (2 if double else 1)
-    h = int(30 + span * 0.95 + 16)
+    # The wall line stays at mid-height: the leaf swings into the lower half
+    # and the upper half is left empty.
+    c = int(span * 0.95 + 16)
+    h = 2 * c
 
     def make():
         a = Art(w, h, seed)
-        a.shape(rect(4, 24, w - 4, 36), shade(FRAME, 0.25), outline=DETAIL, corner=2, depth=2, mottle=0)
-        for x0 in (2, w - 20):
-            a.shape(rect(x0, 10, x0 + 18, 50), FRAME, outline=DETAIL * 1.4, corner=3, depth=4, light_k=0.35)
+        jambs(a, w, h, reach=20)
         hinges = [(20, -1)] + ([(w - 20, 1)] if double else [])
         for hx, side in hinges:
             ang = 1.3 if side < 0 else math.pi - 1.3
             if side < 0:
-                swing(a, hx, 30, span, 0.08, ang - 0.05)
+                swing(a, hx, c, span, 0.08, ang - 0.05)
             else:
-                swing(a, hx, 30, span, ang + 0.05, math.pi - 0.08)
-            x1, y1 = hx + span * math.cos(ang), 30 + span * math.sin(ang)
+                swing(a, hx, c, span, ang + 0.05, math.pi - 0.08)
+            x1, y1 = hx + span * math.cos(ang), c + span * math.sin(ang)
             ux, uy = math.cos(ang), math.sin(ang)
             px, py = -uy * 8, ux * 8
-            a.shape([(hx + px, 30 + py), (x1 + px, y1 + py), (x1 - px, y1 - py), (hx - px, 30 - py)], DOOR, outline=DETAIL * 1.4, corner=2, depth=2, light_k=0.4)
-            hx2, hy2 = hx + (span - 20) * ux, 30 + (span - 20) * uy
+            a.shape([(hx + px, c + py), (x1 + px, y1 + py), (x1 - px, y1 - py), (hx - px, c - py)], DOOR, outline=DETAIL * 1.4, corner=2, depth=2, light_k=0.4)
+            hx2, hy2 = hx + (span - 20) * ux, c + (span - 20) * uy
             for s_ in (-1, 1):
                 a.shape(ellipse(hx2 + s_ * px * 1.3, hy2 + s_ * py * 1.3, 5, 4, 16), BRASS, outline=FINE * 1.3, depth=1, mottle=0)
         return a.image()
@@ -617,15 +621,16 @@ def barricaded_door(seed=1411):
 
 
 def broken_door(seed=1412):
-    w, h = T, 90
+    w, h = T, 120
+    c = h / 2
 
     def make():
         a = Art(w, h, seed)
-        jambs(a, w, 60)
-        # A splintered stub on the hinge and pieces scattered.
-        a.shape([(20, 22), (80, 22), (70, 30), (90, 34), (20, 38)], DOOR, outline=DETAIL * 1.3, corner=1, depth=2)
+        jambs(a, w, h, reach=22)
+        # A splintered stub on the hinge and pieces scattered past the wall.
+        a.shape([(20, c - 8), (80, c - 8), (70, c), (90, c + 4), (20, c + 8)], DOOR, outline=DETAIL * 1.3, corner=1, depth=2)
         for _ in range(5):
-            x, y = a.rng.uniform(60, w - 40), a.rng.uniform(46, h - 10)
+            x, y = a.rng.uniform(60, w - 40), a.rng.uniform(c + 16, h - 10)
             L = a.rng.uniform(26, 50)
             t = a.rng.uniform(-0.6, 0.6)
             px, py = -math.sin(t) * 6, math.cos(t) * 6

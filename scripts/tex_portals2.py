@@ -39,8 +39,8 @@ PAINTS = {
 }
 
 
-def frame_posts(a, w, h, color=FRAME, depth=18):
-    jambs(a, w, h, color, depth)
+def frame_posts(a, w, h, color=FRAME, depth=18, reach=None):
+    jambs(a, w, h, color, depth, reach)
 
 
 def handles(a, x, h, thick, color=BRASS, ring=False):
@@ -128,25 +128,26 @@ def swung(seed, color, angle=1.3, double_=False, frame=FRAME, knob=BRASS):
     dotted arc it sweeps."""
     w = SW if double_ else T
     span = (w - 40) / (2 if double_ else 1)
-    h = int(30 + span * math.sin(angle) + 22)
+    # Wall line at mid-height (portals are drawn centred on the wall): the
+    # leaf swings into the lower half, the upper half stays empty.
+    c = max(30, int(span * math.sin(angle) + 22))
+    h = 2 * c
 
     def make():
         a = Art(w, h, seed)
-        a.shape(rect(4, 24, w - 4, 36), shade(frame, 0.25), outline=DETAIL, corner=2, depth=2, mottle=0)
-        for x0 in (2, w - 20):
-            a.shape(rect(x0, 10, x0 + 18, 50), frame, outline=DETAIL * 1.4, corner=3, depth=4, light_k=0.35)
+        frame_posts(a, w, h, frame, depth=18, reach=20)
         hinges = [(20, -1)] + ([(w - 20, 1)] if double_ else [])
         for hx, side in hinges:
             ang = angle if side < 0 else math.pi - angle
             if side < 0:
-                swing(a, hx, 30, span, 0.08, ang - 0.05)
+                swing(a, hx, c, span, 0.08, ang - 0.05)
             else:
-                swing(a, hx, 30, span, ang + 0.05, math.pi - 0.08)
+                swing(a, hx, c, span, ang + 0.05, math.pi - 0.08)
             ux, uy = math.cos(ang), math.sin(ang)
-            x1, y1 = hx + span * ux, 30 + span * uy
+            x1, y1 = hx + span * ux, c + span * uy
             px, py = -uy * 8, ux * 8
-            a.shape([(hx + px, 30 + py), (x1 + px, y1 + py), (x1 - px, y1 - py), (hx - px, 30 - py)], color, outline=DETAIL * 1.4, corner=2, depth=2, light_k=0.4)
-            hx2, hy2 = hx + (span - 20) * ux, 30 + (span - 20) * uy
+            a.shape([(hx + px, c + py), (x1 + px, y1 + py), (x1 - px, y1 - py), (hx - px, c - py)], color, outline=DETAIL * 1.4, corner=2, depth=2, light_k=0.4)
+            hx2, hy2 = hx + (span - 20) * ux, c + (span - 20) * uy
             for s_ in (-1, 1):
                 a.shape(ellipse(hx2 + s_ * px * 1.3, hy2 + s_ * py * 1.3, 5, 4, 16), knob, outline=FINE * 1.3, depth=1, mottle=0)
         return a.image()
@@ -226,15 +227,19 @@ def bronze_door(seed=1612):
 
 
 def picket_gate(seed, color=rgb("#e4ddd0"), w=T, h=70, open_=False):
+    if open_:
+        # Wall line at mid-height, the gate swung into the lower half.
+        h = 2 * int((w - 56) * math.sin(1.1) + 20)
+
     def make():
         a = Art(w, h, seed)
-        py = 36 if open_ else h / 2
+        py = h / 2
         for x0 in (4, w - 26):
             a.shape(rect(x0, py - 14, x0 + 22, py + 14), FRAME, outline=DETAIL * 1.4, corner=3, depth=4, light_k=0.35)
         if open_:
             ang = 1.1
             span = w - 56
-            y0 = 36
+            y0 = h / 2
             swing(a, 26, y0, span, 0.08, ang - 0.05)
             pts = [(26 + t * math.cos(ang), y0 + t * math.sin(ang)) for t in range(10, int(span), 16)]
             a.ink([(26, y0), (26 + span * math.cos(ang), y0 + span * math.sin(ang))], DETAIL * 2.2, color=INK, taper=False)
@@ -264,34 +269,30 @@ def rail_gate(seed, color=rgb("#8a6040"), w=T, h=70):
 
 
 def spear_gate(seed, color=rgb("#3e3d42"), w=SW, h=80, gold_tips=False, open_=False):
+    # Open, `h` sets the leaves' length; the wall line goes to mid-height
+    # and they swing into the lower half.
+    reach = h - 60
+    if open_:
+        h = 2 * int(reach * math.sin(1.2) + 30)
+
     def make():
         a = Art(w, h, seed)
         leaves = [(26, w / 2 - 2), (w / 2 + 2, w - 26)]
         if open_:
-            yy = 36
+            yy = h / 2
             a.shape(rect(4, yy - 6, w - 4, yy + 6), shade(DARK_STONE, 0.25), outline=DETAIL, corner=2, depth=2, mottle=0)
             for x0 in (2, w - 28):
                 a.shape(rect(x0, yy - 24, x0 + 26, yy + 24), DARK_STONE, outline=DETAIL * 1.4, corner=3, depth=4, light_k=0.35)
             for hx, side in ((26, -1), (w - 26, 1)):
                 ang = 1.2 if side < 0 else math.pi - 1.2
-                L = h - yy - 24
                 if side < 0:
-                    swing(a, hx, yy, L, 0.08, 1.15)
+                    swing(a, hx, yy, reach, 0.08, 1.15)
                 else:
-                    swing(a, hx, yy, L, math.pi - 1.15, math.pi - 0.08)
-                a.ink([(hx, yy), (hx + L * math.cos(ang), yy + L * math.sin(ang))], DETAIL * 2.6, color=INK, taper=False)
-                a.ink([(hx, yy), (hx + L * math.cos(ang), yy + L * math.sin(ang))], DETAIL * 1.5, color=color, taper=False)
+                    swing(a, hx, yy, reach, math.pi - 1.15, math.pi - 0.08)
+                a.ink([(hx, yy), (hx + reach * math.cos(ang), yy + reach * math.sin(ang))], DETAIL * 2.6, color=INK, taper=False)
+                a.ink([(hx, yy), (hx + reach * math.cos(ang), yy + reach * math.sin(ang))], DETAIL * 1.5, color=color, taper=False)
             return a.image()
         frame_posts(a, w, h, DARK_STONE, depth=26)
-        if False:
-            for hx, side in ((26, -1), (w - 26, 1)):
-                ang = 1.2 if side < 0 else math.pi - 1.2
-                span = w / 2 - 28
-                swing(a, hx, h / 2, min(span, h * 0.6), 0.08, 1.15) if side < 0 else swing(a, hx, h / 2, min(span, h * 0.6), math.pi - 1.15, math.pi - 0.08)
-                L = min(span, h * 0.6)
-                a.ink([(hx, h / 2), (hx + L * math.cos(ang), h / 2 + L * math.sin(ang))], DETAIL * 2.6, color=INK, taper=False)
-                a.ink([(hx, h / 2), (hx + L * math.cos(ang), h / 2 + L * math.sin(ang))], DETAIL * 1.5, color=color, taper=False)
-            return a.image()
         for x0, x1 in leaves:
             a.ink([(x0, h / 2), (x1, h / 2)], DETAIL * 2.8, color=INK, taper=False, wob=0)
             a.ink([(x0, h / 2), (x1, h / 2)], DETAIL * 1.6, color=color, taper=False, wob=0)
@@ -327,7 +328,8 @@ def portcullis2(seed, color=IRON, frame=rgb("#8a857d"), raised=False, w=SW, h=84
 
 
 def bookshelf_door(seed=1631, open_=False):
-    w, h = T, 250 if open_ else 80
+    # Open, the wall line stays at mid-height and the shelf swings below it.
+    w, h = T, 2 * int((T - 46) * math.sin(1.1) + 30) if open_ else 80
 
     def books(a, x0, x1, y0, y1):
         x = x0 + 2
@@ -340,7 +342,7 @@ def bookshelf_door(seed=1631, open_=False):
     def make():
         a = Art(w, h, seed)
         if open_:
-            yy = 30
+            yy = h / 2
             a.shape(rect(4, yy - 6, w - 4, yy + 6), HOLE, outline=DETAIL, corner=2, depth=2, mottle=0)
             for x0 in (2, w - 22):
                 a.shape(rect(x0, yy - 20, x0 + 20, yy + 20), rgb("#5a3a26"), outline=DETAIL * 1.4, corner=3, depth=4, light_k=0.35)
