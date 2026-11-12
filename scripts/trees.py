@@ -228,57 +228,70 @@ def palm(seed=32, size=620):
 
 
 def dead_tree(seed=33, size=640):
-    """A bare tree from above: limbs that taper smoothly from the trunk to the
-    tips, bending as they go, with branches sprouting along them."""
+    """A bare tree from above: limbs that wander and thin out gradually,
+    forking at their ends (their thickness carries into the forks), with the
+    last twigs as fine pen strokes."""
+    from pen import normals
+
     a = Art(size, size, seed)
     m = size / 2
     bark = rgb("#7a624c")
-    limbs = []  # (depth, polygon, spine)
+    limbs = []  # (width, polygon, spine)
+    twigs = []  # (spine, width)
 
     def grow(x, y, ang, L, w0, depth):
-        n = 14
-        spine, widths = [], []
-        bend = a.rng.uniform(-0.5, 0.5)
-        for j in range(n + 1):
-            t = j / n
-            aa = ang + bend * t + 0.25 * math.sin(t * 5 + depth)
-            if j:
-                px, py = spine[-1]
-                spine.append((px + L / n * math.cos(aa), py + L / n * math.sin(aa)))
-            else:
-                spine.append((x, y))
-            widths.append(max(1.2, w0 * (1 - t) ** 0.85))
-        from pen import normals
-
-        ns = normals(spine, False)
-        left = [(px + nx * w / 2, py + ny * w / 2) for (px, py), (nx, ny), w in zip(spine, ns, widths)]
-        right = [(px - nx * w / 2, py - ny * w / 2) for (px, py), (nx, ny), w in zip(spine, ns, widths)]
-        limbs.append((depth, left + right[::-1], spine))
-        if depth >= 3 or w0 < 5:
+        w1 = w0 * a.rng.uniform(0.55, 0.68)
+        n = 12
+        spine, widths = [(x, y)], [w0]
+        turn = a.rng.gauss(0, 0.04)
+        for j in range(1, n + 1):
+            turn += a.rng.gauss(0, 0.05)
+            turn *= 0.85
+            ang += turn
+            px, py = spine[-1]
+            spine.append((px + L / n * math.cos(ang), py + L / n * math.sin(ang)))
+            widths.append(w0 + (w1 - w0) * j / n)
+        if w0 < 5:
+            twigs.append((spine, w0))
+        else:
+            ns = normals(spine, False)
+            left = [(px + nx * w / 2, py + ny * w / 2) for (px, py), (nx, ny), w in zip(spine, ns, widths)]
+            right = [(px - nx * w / 2, py - ny * w / 2) for (px, py), (nx, ny), w in zip(spine, ns, widths)]
+            tip = spine[-1]
+            # A round end, so the forks grow out of it smoothly.
+            cap = [(tip[0] + math.cos(ang + t) * w1 / 2, tip[1] + math.sin(ang + t) * w1 / 2) for t in [math.pi / 2 - math.pi * k / 6 for k in range(7)]]
+            limbs.append((w0, left + cap + right[::-1], spine))
+        if depth >= 4 or w1 < 2.2:
             return
-        for _ in range(a.rng.randint(2, 3)):
-            t = a.rng.uniform(0.35, 0.85)
-            j = int(t * n)
-            bx, by = spine[j]
-            px, py = spine[j - 1]
-            ang_here = math.atan2(by - py, bx - px)
+        forks = 2 if a.rng.random() < 0.85 else 3
+        spread = a.rng.uniform(0.35, 0.6)
+        for k in range(forks):
+            off = spread * (k - (forks - 1) / 2) * (2 / max(1, forks - 1)) + a.rng.uniform(-0.15, 0.15)
+            grow(spine[-1][0], spine[-1][1], ang + off, L * a.rng.uniform(0.62, 0.78), w1 * a.rng.uniform(0.75, 0.9), depth + 1)
+        if depth < 2 and a.rng.random() < 0.4:
+            j = a.rng.randint(4, 8)
             side = a.rng.choice((-1, 1))
-            grow(bx, by, ang_here + side * a.rng.uniform(0.45, 0.9), L * a.rng.uniform(0.45, 0.65), widths[j] * 0.75, depth + 1)
+            bx, by = spine[j]
+            grow(bx, by, ang + side * a.rng.uniform(0.6, 1.0), L * 0.5, widths[j] * 0.55, depth + 2)
 
-    count = a.rng.randint(5, 6)
+    count = a.rng.randint(4, 6)
     rot = a.rng.uniform(0, 6.28)
     for i in range(count):
-        ang = rot + 2 * math.pi * i / count + a.rng.uniform(-0.2, 0.2)
-        grow(m, m, ang, size * a.rng.uniform(0.3, 0.37), 42, 0)
-    # Thinnest first, so thicker limbs cover the joints.
-    for depth, poly, spine in sorted(limbs, key=lambda l: -l[0]):
+        ang = rot + 2 * math.pi * i / count + a.rng.uniform(-0.25, 0.25)
+        grow(m, m, ang, size * a.rng.uniform(0.15, 0.19), a.rng.uniform(36, 46), 0)
+    for spine, w in twigs:
+        a.ink(spine, w + 0.6, color=shade(bark, 0.65), alpha=0.95, taper=True, wob=0.2, var=0.1)
+    # Thinnest first, so thicker limbs cover their forks.
+    for w0, poly, spine in sorted(limbs, key=lambda l: l[0]):
 
-        def grain(art, path, spine=spine):
-            art.ink(spine[1:-2], FINE, color=shade(bark, 0.45), alpha=0.7, wob=0.3)
+        def grain(art, path, spine=spine, w0=w0):
+            if w0 > 12:
+                art.ink(spine[1:-1], FINE, color=shade(bark, 0.45), alpha=0.7, wob=0.3)
 
-        a.shape(poly, vary(a.rng, bark, 0.04), outline=DETAIL * (1.3 if depth == 0 else 1.0), corner=0, wob=0.2, depth=4, shade_k=0.4, light_k=0.25, ao=0.0, mottle=0, detail=grain)
-    a.shape(scallop(m, m, 34, a.rng, 9, 0.08), bark, outline=OUTLINE, corner=0, depth=7)
-    a.ink(ellipse(m + 2, m + 2, 14, 14, 24), FINE * 1.2, closed=True, color=shade(bark, 0.5), alpha=0.8)
+        a.shape(poly, bark, outline=DETAIL * (1.25 if w0 > 20 else 0.95), corner=0, wob=0.15, depth=3, shade_k=0.4, light_k=0.25, ao=0.0, mottle=0)
+    a.shape(scallop(m, m, 40, a.rng, 9, 0.08), bark, outline=OUTLINE, corner=0, depth=7)
+    for rr in (12, 24):
+        a.ink(scallop(m + 2, m + 2, rr, a.rng, 7, 0.05), FINE * 1.1, closed=True, color=shade(bark, 0.5), alpha=0.75)
     return a.image()
 
 
