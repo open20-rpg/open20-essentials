@@ -14,7 +14,7 @@ import math
 import numpy as np
 
 from floors import crack, inset, speckles, split, voronoi_cells
-from pen import DETAIL, FINE, INK, Art, blob, chaikin, ellipse, mix, rect, rgb, shade, tint, to_path, vary
+from pen import DETAIL, FINE, INK, JOINT, JOINT_ALPHA, Art, grout, joint_color, blob, chaikin, ellipse, mix, rect, rgb, shade, tint, to_path, vary
 from tex_build import SW, band, dot, strip
 from tex_ground import LS, _edge, _grid, _light, _noise
 
@@ -65,11 +65,16 @@ def f_cracks(a, base, n=14, L=(40, 90)):
 
 
 def f_slabs(a, base, cols=5, jitter=0.35, outline=DETAIL * 1.2, corner=10, gap=4):
+    """Fitted floor slabs: joint-toned grout and thin joints of the slab's own
+    darker tone (`outline` only scales the joint)."""
     s = a.w
+    a.fill_path(to_path(rect(-2, -2, s + 2, s + 2)), grout(base))
+    k = 1.2 * outline / (DETAIL * 1.2)
     for (cx, cy), poly in voronoi_cells(s, s, cols, cols, a.rng, jitter):
         if len(poly) < 3:
             continue
-        a.shape(inset(poly, gap), vary(a.rng, base, 0.05), outline=outline, corner=corner, depth=5, shade_k=0.4, light_k=0.3)
+        c = vary(a.rng, base, 0.05)
+        a.shape(inset(poly, min(2.0, gap * 0.5)), c, outline=JOINT * k, outline_color=joint_color(c), outline_alpha=JOINT_ALPHA, corner=corner * 0.8, depth=4, shade_k=0.35, light_k=0.25, ao=0.15)
 
 
 def f_basalt(a, base, n=6):
@@ -365,11 +370,19 @@ def wall(seed, base, kind="rocks", h=72, extra=None):
                 a.shape(pts, vary(a.rng, shade(base, 0.04 * r), 0.05), outline=DETAIL * 1.1, corner=3, wob=1.0, depth=3, shade_k=0.5, light_k=0.3, var=0.1)
                 x += wdt
     elif kind == "slabs":
+        # One wall body inked along its long edges, cut into slabs by joints.
+        band(a, 8, h - 8, grout(base), outline=0)
         x = 0.0
         while x < SW:
             bw = a.rng.uniform(70, 120)
-            a.shape(rect(x + 2, 8, x + bw - 2, h - 8), vary(a.rng, base, 0.05), outline=DETAIL * 1.3, corner=6, wob=1.0, depth=4, shade_k=0.5, light_k=0.35, var=0.1)
+            c = vary(a.rng, base, 0.05)
+            a.shape(rect(x + 1, 9, x + bw - 1, h - 9), c, outline=JOINT * 1.2, outline_color=joint_color(c), outline_alpha=JOINT_ALPHA, corner=3, wob=0.6, depth=3, shade_k=0.4, light_k=0.3, ao=0.1, var=0.1)
             x += bw
+        tile = a.tile
+        a.tile = False
+        for y in (8, h - 8):
+            a.ink([(-60, y), (a.w + 60, y)], DETAIL * 1.3, taper=False, wob=0.4, var=0.1)
+        a.tile = tile
     elif kind == "columns":
         x = 0.0
         while x < SW:

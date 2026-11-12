@@ -8,10 +8,32 @@ import math
 import numpy as np
 
 from floors import inset, speckles, split, voronoi_cells
-from pen import FINE, INK, blob, chaikin, ellipse, mix, rect, rgb, shade, tint, to_path, vary
+from pen import FINE, INK, JOINT, JOINT_ALPHA, blob, grout, joint_color, chaikin, ellipse, mix, rect, rgb, shade, tint, to_path, vary
 from tex_ground import PH, PW, boards_content, dirt_content, dot, flag_content, gravel_content, grass_trail_content, mud_content, path_strip, stones_in
 
 C = rgb
+
+
+def avg(cols):
+    cs = [C(c) for c in cols]
+    return tuple(sum(c[i] for c in cs) // len(cs) for i in range(3))
+
+
+def gx(cols, mortar=None):
+    """Hex background for a paved path: the joints' tone (see pen.grout),
+    so the gaps between pieces read as thin joints, not dark trenches."""
+    return "#%02x%02x%02x" % grout(avg(cols), C(mortar) if mortar else None)
+
+
+def joint_shape(a, pts, c, k=1.0, **kw):
+    """A paving piece outlined by a thin joint of its own darker tone."""
+    kw.setdefault("wob", 0.4)
+    kw.setdefault("depth", 3)
+    kw.setdefault("shade_k", 0.35)
+    kw.setdefault("light_k", 0.25)
+    kw.setdefault("ao", 0.1)
+    kw.setdefault("mottle", 0.03)
+    return a.shape(pts, c, outline=JOINT * k, outline_color=joint_color(c), outline_alpha=JOINT_ALPHA, **kw)
 
 
 # -- content helpers -------------------------------------------------------------------------------
@@ -75,8 +97,19 @@ def pebbles_in(cols, n=320, r=(3, 6.5)):
 
 
 def cobbles(cols, r=(11, 15), rows=4, outline=2.4):
+    """Packed cobbles: like tex_ground.stones_in but set close together with
+    thin tone-on-tone joints (`outline` only scales the joint)."""
     def f(a, top, bot):
-        stones_in(a, top, bot, cols, r, rows=rows, outline=outline)
+        t, b = span(top, bot)
+        hh = b - t
+        rr = (r[0] + r[1]) / 2
+        count = int(PW / (rr * 1.75))
+        for row in range(rows):
+            for k in range(count):
+                x = (k + 0.5 + (0.5 if row % 2 else 0)) * PW / count + a.rng.uniform(-3, 3)
+                y = t + hh * (row + 0.5) / rows + a.rng.uniform(-4, 4)
+                c = vary(a.rng, C(a.rng.choice(cols)), 0.06)
+                joint_shape(a, blob(x, y, a.rng.uniform(*r) * 1.05, a.rng, 9, 0.16), c, 1.2 * outline / 2.4, corner=0, depth=3, mottle=0)
 
     return f
 
@@ -91,7 +124,7 @@ def setts(cols, rows=5, w=34):
             off = ww / 2 if r % 2 else 0
             for k in range(-1, n + 1):
                 x = k * ww + off
-                a.shape(rect(x + 2, r * hh + 2, x + ww - 2, r * hh + hh - 2), vary(a.rng, C(a.rng.choice(cols)), 0.05), outline=2.2, corner=4, wob=0.5, depth=3, shade_k=0.45, light_k=0.35, ao=0.15, mottle=0.03)
+                joint_shape(a, rect(x + 1, r * hh + 1, x + ww - 1, r * hh + hh - 1), vary(a.rng, C(a.rng.choice(cols)), 0.05), 1.2, corner=3)
 
     return f
 
@@ -105,7 +138,7 @@ def bricks(cols, bond="running", rows=5):
         cs = [C(c) for c in cols]
 
         def brick(x0, y0, x1, y1):
-            a.shape(rect(x0 + 2, y0 + 2, x1 - 2, y1 - 2), vary(a.rng, a.rng.choice(cs), 0.05), outline=2.1, corner=2, wob=0.4, depth=3, shade_k=0.45, light_k=0.3, ao=0.15, mottle=0.03)
+            joint_shape(a, rect(x0 + 0.9, y0 + 0.9, x1 - 0.9, y1 - 0.9), vary(a.rng, a.rng.choice(cs), 0.05), corner=1.5)
 
         if bond == "stack":
             for r in range(rows):
@@ -145,8 +178,8 @@ def bricks(cols, bond="running", rows=5):
 def flags(cols, n=7, rows=2):
     def f(a, top, bot):
         for (cx, cy), poly in voronoi_cells(PW, PH, n, rows, a.rng, 0.3):
-            p = inset(poly, 4)
-            a.shape(p, vary(a.rng, C(a.rng.choice(cols)), 0.05), outline=2.8, corner=8, wob=0.8, depth=5, shade_k=0.5, light_k=0.4, ao=0.2, detail=lambda art, path: speckles(art, path, shade(C(cols[0]), 0.45), 6))
+            p = inset(poly, 1.8)
+            joint_shape(a, p, vary(a.rng, C(a.rng.choice(cols)), 0.05), 1.2, corner=7, wob=0.7, depth=4, shade_k=0.4, light_k=0.3, ao=0.15, detail=lambda art, path: speckles(art, path, shade(C(cols[0]), 0.45), 6))
 
     return f
 
@@ -158,7 +191,7 @@ def roman_road(paving, curb):
             n = 12
             for k in range(n):
                 x = k * PW / n
-                a.shape(rect(x + 2, y0 + 2, x + PW / n - 2, y1 - 2), vary(a.rng, C(curb), 0.05), outline=2.2, corner=3, wob=0.4, depth=3, shade_k=0.5, light_k=0.35, ao=0.1, mottle=0.03)
+                joint_shape(a, rect(x + 1, y0 + 1, x + PW / n - 1, y1 - 1), vary(a.rng, C(curb), 0.05), 1.2, corner=2)
 
     return f
 
@@ -277,6 +310,32 @@ def lava_between(a, top, bot):
     stepping(("#3a3634", "#2e2a28"), detail_col="#5a5450")(a, top, bot)
 
 
+def boards(color, across=True, gap=26):
+    """tex_ground.boards_content with thin tone-on-tone joints and nails."""
+    def f(a, top, bot):
+        col = C(color)
+        if across:
+            x = 0
+            while x < PW - 2:
+                w = gap
+                c = vary(a.rng, col, 0.05)
+                joint_shape(a, rect(x + 0.8, 4, x + w - 0.8, PH - 4), c, corner=1.5, mottle=0.04, detail=lambda art, p, x=x, c=c: art.ink([(x + w / 2 + art.rng.uniform(-3, 3), 12), (x + w / 2 + art.rng.uniform(-3, 3), PH - 12)], FINE * 0.8, color=shade(c, 0.45), alpha=0.6))
+                for ny in (20, PH - 20):
+                    dot(a, x + w / 2, ny, 2, shade(c, 0.6), 0.7)
+                x += w
+        else:
+            rows = 5
+            hh = PH / rows
+            for r in range(rows):
+                x = a.rng.uniform(0, PW)
+                for ln in split(PW, a.rng, PW * 0.3, PW * 0.6):
+                    c = vary(a.rng, col, 0.05)
+                    joint_shape(a, rect(x + 0.8, r * hh + 0.8, x + ln - 0.8, r * hh + hh - 0.8), c, corner=1.5, mottle=0.04)
+                    x += ln
+
+    return f
+
+
 def logs_across(col, w=24):
     def f(a, top, bot):
         n = int(PW / w)
@@ -293,7 +352,7 @@ def logs_across(col, w=24):
 
 def rope_bridge(wood):
     def f(a, top, bot):
-        boards_content(wood, across=True, gap=24)(a, top, bot)
+        boards(wood, across=True, gap=24)(a, top, bot)
         for y in (10, PH - 10):
             a.ink([(x, y + 3 * math.sin(2 * math.pi * x / PW * 4)) for x in np.linspace(-20, PW + 20, 60)], 6, color=INK, taper=False)
             a.ink([(x, y + 3 * math.sin(2 * math.pi * x / PW * 4)) for x in np.linspace(-20, PW + 20, 60)], 3.5, color=C("#c9b088"), taper=False)
@@ -350,10 +409,22 @@ def rails(ground, tie, rail="#6a6c72", overgrown=False):
 def border_of(kind, cols=("#c8443a",)):
     def f(a, top, bot):
         if kind == "curb":
+            # One continuous curb (inked only along its long edges) cut into
+            # blocks by thin joints, not a row of loose inked blocks.
             n = 10
+            t, b = span(top, bot)
+            y0, y1 = max(6, t + 2.5), min(PH - 6, b - 2.5)
+            tile = a.tile
+            a.tile = False
+            a.fill_path(to_path(rect(-20, y0, PW + 20, y1)), grout(C(cols[0])))
+            a.tile = tile
             for k in range(n):
                 x = k * PW / n
-                a.shape(rect(x + 2, 6, x + PW / n - 2, PH - 6), vary(a.rng, C(cols[0]), 0.05), outline=2.4, corner=4, wob=0.4, depth=5, shade_k=0.5, light_k=0.4, ao=0.15, mottle=0.03)
+                joint_shape(a, rect(x + 1, y0 + 1, x + PW / n - 1, y1 - 1), vary(a.rng, C(cols[0]), 0.05), 1.2, corner=2, depth=4, shade_k=0.4, light_k=0.3, ao=0.12)
+            a.tile = False
+            for y in (y0, y1):
+                a.ink([(-20, y), (PW + 20, y)], 3.2, taper=False, wob=0.3, var=0.08)
+            a.tile = tile
         elif kind == "flowers":
             grass_trail_content(a, top, bot)
             for _ in range(70):
@@ -425,36 +496,36 @@ PATHS2 = {
     "Red Gravel Path": P(518, "#8a5a4a", pebbles_in(("#a86a58", "#985c4a", "#b87a66"))),
     "Bark Mulch Path": P(519, "#6e4a30", needles(("#a8784e", "#3e2818", "#c08a5a"), 560, (8, 16))),
     # Cobbles
-    "Small Cobbles": P(520, "#6e6860", cobbles(GREYS, (8, 11), 5, 2.0), margin=10, amp=2),
-    "Large Cobbles": P(521, "#6e6860", cobbles(GREYS, (15, 20), 3, 2.6), margin=10, amp=2),
-    "Basalt Cobbles": P(522, "#3a3836", cobbles(("#5a5654", "#4a4644", "#666260")), margin=10, amp=2),
-    "Sandstone Cobbles": P(523, "#8a7558", cobbles(("#cdb68e", "#d9c49c", "#bfa67e")), margin=10, amp=2),
-    "Mossy Cobbles": P(524, "#5a6048", combine(cobbles(GREYS), specks(("#6f9443",), 260, (1.5, 3.5), 0.8)), margin=10, amp=2),
-    "Limestone Cobbles": P(525, "#a8a294", cobbles(("#e6e0d0", "#d8d2c2", "#efe9da")), margin=10, amp=2),
-    "Blue-grey Cobbles": P(526, "#5a6068", cobbles(("#8a96a2", "#7a8692", "#96a2ae")), margin=10, amp=2),
-    "Mixed Cobbles": P(527, "#6e6860", cobbles(("#aaa49b", "#b07a5e", "#cdb68e", "#8a96a2")), margin=10, amp=2),
-    "Worn Cobbles": P(528, "#7a7268", combine(cobbles(GREYS, (10, 14), 4, 1.8), dirt_content), margin=12, amp=4),
+    "Small Cobbles": P(520, gx(GREYS), cobbles(GREYS, (8, 11), 5, 2.0), margin=10, amp=2),
+    "Large Cobbles": P(521, gx(GREYS), cobbles(GREYS, (15, 20), 3, 2.6), margin=10, amp=2),
+    "Basalt Cobbles": P(522, gx(("#5a5654", "#4a4644", "#666260")), cobbles(("#5a5654", "#4a4644", "#666260")), margin=10, amp=2),
+    "Sandstone Cobbles": P(523, gx(("#cdb68e", "#d9c49c", "#bfa67e")), cobbles(("#cdb68e", "#d9c49c", "#bfa67e")), margin=10, amp=2),
+    "Mossy Cobbles": P(524, gx(GREYS), combine(cobbles(GREYS), specks(("#6f9443",), 260, (1.5, 3.5), 0.8)), margin=10, amp=2),
+    "Limestone Cobbles": P(525, gx(("#e6e0d0", "#d8d2c2", "#efe9da")), cobbles(("#e6e0d0", "#d8d2c2", "#efe9da")), margin=10, amp=2),
+    "Blue-grey Cobbles": P(526, gx(("#8a96a2", "#7a8692", "#96a2ae")), cobbles(("#8a96a2", "#7a8692", "#96a2ae")), margin=10, amp=2),
+    "Mixed Cobbles": P(527, gx(("#aaa49b", "#b07a5e", "#cdb68e", "#8a96a2")), cobbles(("#aaa49b", "#b07a5e", "#cdb68e", "#8a96a2")), margin=10, amp=2),
+    "Worn Cobbles": P(528, gx(GREYS), combine(cobbles(GREYS, (10, 14), 4, 1.8), dirt_content), margin=12, amp=4),
     # Setts & flagstones
-    "Granite Setts": P(529, "#5e5a56", setts(("#9a958e", "#8a857e", "#a6a19a")), margin=6, amp=0),
-    "Dark Setts": P(530, "#3a3836", setts(("#5e5a56", "#6a6662", "#545050")), margin=6, amp=0),
-    "Sandstone Setts": P(531, "#7a6650", setts(("#c8b088", "#d6c098", "#b89e78")), margin=6, amp=0),
-    "Large Grey Flagstones": P(532, "#6f685f", flags(("#a9a296", "#b8ae9c", "#968f86"), 5), margin=10, amp=2),
-    "Slate Flagstones Path": P(533, "#3e4248", flags(("#6a727c", "#5e666e", "#77808a")), margin=10, amp=2),
-    "Red Flagstones": P(534, "#6a4438", flags(("#a86a58", "#985c4a", "#b87a66")), margin=10, amp=2),
-    "Marble Flagstones": P(535, "#b8b2a8", flags(("#ece6da", "#e0dace", "#f4efe4")), margin=10, amp=2),
-    "Crazy Paving": P(536, "#6f685f", flags(("#a9a296", "#cdb68e", "#968f86", "#b8ae9c"), 11, 3), margin=10, amp=2),
-    "Dark Flagstones": P(537, "#2e2c2a", flags(("#5a5654", "#4e4a48", "#666260")), margin=10, amp=2),
+    "Granite Setts": P(529, gx(("#9a958e", "#8a857e", "#a6a19a")), setts(("#9a958e", "#8a857e", "#a6a19a")), margin=6, amp=0),
+    "Dark Setts": P(530, gx(("#5e5a56", "#6a6662", "#545050")), setts(("#5e5a56", "#6a6662", "#545050")), margin=6, amp=0),
+    "Sandstone Setts": P(531, gx(("#c8b088", "#d6c098", "#b89e78")), setts(("#c8b088", "#d6c098", "#b89e78")), margin=6, amp=0),
+    "Large Grey Flagstones": P(532, gx(("#a9a296", "#b8ae9c", "#968f86")), flags(("#a9a296", "#b8ae9c", "#968f86"), 5), margin=10, amp=2),
+    "Slate Flagstones Path": P(533, gx(("#6a727c", "#5e666e", "#77808a")), flags(("#6a727c", "#5e666e", "#77808a")), margin=10, amp=2),
+    "Red Flagstones": P(534, gx(("#a86a58", "#985c4a", "#b87a66")), flags(("#a86a58", "#985c4a", "#b87a66")), margin=10, amp=2),
+    "Marble Flagstones": P(535, gx(("#ece6da", "#e0dace", "#f4efe4")), flags(("#ece6da", "#e0dace", "#f4efe4")), margin=10, amp=2),
+    "Crazy Paving": P(536, gx(("#a9a296", "#cdb68e", "#968f86", "#b8ae9c")), flags(("#a9a296", "#cdb68e", "#968f86", "#b8ae9c"), 11, 3), margin=10, amp=2),
+    "Dark Flagstones": P(537, gx(("#5a5654", "#4e4a48", "#666260")), flags(("#5a5654", "#4e4a48", "#666260")), margin=10, amp=2),
     # Bricks
-    "Soldier Course Bricks": P(538, "#c9b9a2", bricks(("#a8503b", "#94432f", "#b5604a"), "soldier"), margin=6, amp=0),
-    "Basketweave Bricks": P(539, "#c9b9a2", bricks(("#a8503b", "#94432f", "#b5604a"), "basket"), margin=6, amp=0),
-    "Stack Bond Bricks": P(540, "#c9b9a2", bricks(("#a8503b", "#94432f", "#b5604a"), "stack"), margin=6, amp=0),
-    "Brown Brick Road": P(541, "#b8a890", bricks(("#7a5040", "#6a4434", "#8a5e4c")), margin=6, amp=0),
-    "Grey Brick Road": P(542, "#9a968e", bricks(("#7a7670", "#6a6660", "#86827c")), margin=6, amp=0),
-    "White Brick Road": P(543, "#a8a294", bricks(("#e6e0d0", "#d8d2c2", "#efe9da")), margin=6, amp=0),
-    "Old Brick Road": P(544, "#8a7a68", combine(bricks(("#a8503b", "#7a5040", "#94432f")), specks(("#6f9443",), 160, (1.5, 3), 0.7)), margin=6, amp=0),
+    "Soldier Course Bricks": P(538, gx(("#a8503b", "#94432f", "#b5604a"), "#c9b9a2"), bricks(("#a8503b", "#94432f", "#b5604a"), "soldier"), margin=6, amp=0),
+    "Basketweave Bricks": P(539, gx(("#a8503b", "#94432f", "#b5604a"), "#c9b9a2"), bricks(("#a8503b", "#94432f", "#b5604a"), "basket"), margin=6, amp=0),
+    "Stack Bond Bricks": P(540, gx(("#a8503b", "#94432f", "#b5604a"), "#c9b9a2"), bricks(("#a8503b", "#94432f", "#b5604a"), "stack"), margin=6, amp=0),
+    "Brown Brick Road": P(541, gx(("#7a5040", "#6a4434", "#8a5e4c"), "#b8a890"), bricks(("#7a5040", "#6a4434", "#8a5e4c")), margin=6, amp=0),
+    "Grey Brick Road": P(542, gx(("#7a7670", "#6a6660", "#86827c"), "#9a968e"), bricks(("#7a7670", "#6a6660", "#86827c")), margin=6, amp=0),
+    "White Brick Road": P(543, gx(("#e6e0d0", "#d8d2c2", "#efe9da"), "#a8a294"), bricks(("#e6e0d0", "#d8d2c2", "#efe9da")), margin=6, amp=0),
+    "Old Brick Road": P(544, gx(("#a8503b", "#7a5040", "#94432f"), "#8a7a68"), combine(bricks(("#a8503b", "#7a5040", "#94432f")), specks(("#6f9443",), 160, (1.5, 3), 0.7)), margin=6, amp=0),
     # Special pavings
-    "Roman Road": P(545, "#6f685f", roman_road(("#a9a296", "#b8ae9c", "#968f86"), "#8a857e"), margin=0, amp=0, edge_ink=False),
-    "Sandstone Roman Road": P(546, "#7a6650", roman_road(("#cdb68e", "#d9c49c", "#bfa67e"), "#a8906a"), margin=0, amp=0, edge_ink=False),
+    "Roman Road": P(545, gx(("#a9a296", "#b8ae9c", "#968f86")), roman_road(("#a9a296", "#b8ae9c", "#968f86"), "#8a857e"), margin=0, amp=0, edge_ink=False),
+    "Sandstone Roman Road": P(546, gx(("#cdb68e", "#d9c49c", "#bfa67e")), roman_road(("#cdb68e", "#d9c49c", "#bfa67e"), "#a8906a"), margin=0, amp=0, edge_ink=False),
     "Mosaic Road": P(547, "#e4dccb", mosaic(("#4f74a8", "#c8443a", "#e6dcc4")), margin=6, amp=0),
     "Gold Mosaic Road": P(548, "#e4dccb", mosaic(("#7a2e26", "#d6ae4c", "#efe6d0")), margin=6, amp=0),
     # Trails
@@ -481,16 +552,16 @@ PATHS2 = {
     "Sandstone Steps": P(568, "#000000", stepping(("#cdb68e", "#d9c49c"), 5), fill=False, edge_ink=False),
     "Mossy Steps": P(569, "#000000", combine(stepping(("#8f948a", "#7f857c")), specks(("#6f9443",), 120, (2, 4), 0.9)), fill=False, edge_ink=False),
     # Wood
-    "Dark Boardwalk": P(570, "#5a3e2a", boards_content("#6e4a32", across=True), margin=6, amp=0),
-    "Pale Boardwalk": P(571, "#c39463", boards_content("#d2a878", across=True), margin=6, amp=0),
-    "Weathered Boardwalk": P(572, "#8a8478", boards_content("#a8a294", across=True), margin=6, amp=0),
-    "Painted Boardwalk": P(573, "#7a4a3a", boards_content("#a8483a", across=True), margin=6, amp=0),
-    "Long Plank Walk": P(574, "#9a6c43", boards_content("#a8784e", across=False), margin=6, amp=0),
+    "Dark Boardwalk": P(570, gx(("#6e4a32",)), boards("#6e4a32", across=True), margin=6, amp=0),
+    "Pale Boardwalk": P(571, gx(("#d2a878",)), boards("#d2a878", across=True), margin=6, amp=0),
+    "Weathered Boardwalk": P(572, gx(("#a8a294",)), boards("#a8a294", across=True), margin=6, amp=0),
+    "Painted Boardwalk": P(573, gx(("#a8483a",)), boards("#a8483a", across=True), margin=6, amp=0),
+    "Long Plank Walk": P(574, gx(("#a8784e",)), boards("#a8784e", across=False), margin=6, amp=0),
     "Log Path": P(575, "#6e4a30", logs_across("#7a5a3e"), margin=2, amp=0, edge_ink=False),
     "Birch Log Path": P(576, "#a8a294", logs_across("#d8d2c4", 22), margin=2, amp=0, edge_ink=False),
     "Rope Bridge": P(577, "#9a6c43", rope_bridge("#a8784e"), margin=2, amp=0, edge_ink=False),
     "Old Rope Bridge": P(578, "#6e5a44", rope_bridge("#8a7a64"), margin=2, amp=0, edge_ink=False),
-    "Swamp Boardwalk": P(579, "#5a4a36", combine(boards_content("#6e5a40", across=True, gap=30), specks(("#6f9443",), 120, (1.5, 3), 0.8)), margin=6, amp=0),
+    "Swamp Boardwalk": P(579, gx(("#6e5a40",)), combine(boards("#6e5a40", across=True, gap=30), specks(("#6f9443",), 120, (1.5, 3), 0.8)), margin=6, amp=0),
     # Water
     "Shallow Stream": P(580, "#6aa0b6", stream("#6aa0b6", "#8a7a54"), margin=14, amp=8, edge_ink=False),
     "Rocky Creek": P(581, "#5f8ea4", stream("#5f8ea4", "#8a8478", rocks=26), margin=12, amp=8, edge_ink=False),
