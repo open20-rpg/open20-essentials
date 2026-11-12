@@ -26,7 +26,7 @@ PACK = {
     "name": "Open20 Essentials",
     "id": PACK_ID,
     # Bump to reinstall it for users that have an older one (see builtin.rs).
-    "version": "2.0.5",
+    "version": "2.1.0",
     "author": "Open20",
     "keywords": "open20, builtin, essentials",
 }
@@ -55,6 +55,13 @@ OBJECT_GROUPS = {
     "obj_decor": "Decor and Castle",
     "obj_shop": "Shops and Graveyard",
     "obj_variants": "Variants",
+    "obj_srd_weapons": "SRD Weapons",
+    "obj_srd_armor": "SRD Armor and Apparel",
+    "obj_srd_gear": "SRD Adventuring Gear",
+    "obj_srd_tools": "SRD Tools",
+    "obj_srd_magic": "SRD Magic Items",
+    "obj_srd_wondrous": "SRD Wondrous Items",
+    "obj_srd_mounts": "SRD Mounts and Vehicles",
 }
 
 
