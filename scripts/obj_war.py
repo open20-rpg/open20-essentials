@@ -129,7 +129,7 @@ def weapon(fn, w, h, ang, x, y, **kw):
     return make
 
 
-def bow(img, amount=0.35):
+def bow(img, amount=0.25):
     """Curve the image along its height: columns toward the middle sink
     (a parabola across the width), so straight rows become arcs, as a
     curved shield looks in perspective. `amount` is the sag relative to the
@@ -152,7 +152,7 @@ def bow(img, amount=0.35):
     return Image.fromarray(np.clip(out, 0, 255).astype(np.uint8), "RGBA")
 
 
-def trapezoid(img, height=0.30, bottom=0.75):
+def trapezoid(img, height=0.40, bottom=0.75):
     """Seen from above at an angle: the whole image squashed to `height` of
     its height and narrowed toward the bottom (to `bottom` of the width) by
     a smooth perspective warp, so the contents deform evenly as a trapezoid."""
