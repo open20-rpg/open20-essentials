@@ -299,7 +299,7 @@ def trough(seed=116):
 def firewood(seed=117):
     """Split logs stacked lengthwise, seen from above: two layers, the top
     one lighter (nearer the light), sawn ends showing at the near end."""
-    w, h = 300, 240
+    w, h = 260, 240
     a = Art(w, h, seed)
     bark = rgb("#7a5a3e")
 
@@ -318,12 +318,15 @@ def firewood(seed=117):
             a.shape(ellipse(x, ey, r * 0.85, r * 0.38, 28), WOOD_LIGHT, outline=DETAIL, depth=2, mottle=0, shade_k=0.2, light_k=0.2)
             a.ink(ellipse(x, ey, r * 0.42, r * 0.18, 20), FINE, closed=True, color=shade(WOOD_LIGHT, 0.45), alpha=0.8)
 
-    for k in range(5):
-        x = 34 + k * 58
-        log(x, 14 + a.rng.uniform(-6, 6), h - 14 + a.rng.uniform(-6, 6), 28, vary(a.rng, shade(bark, 0.1), 0.05))
-    for k in range(4):
-        x = 63 + k * 58
-        log(x, 30 + a.rng.uniform(-6, 6), h - 30 + a.rng.uniform(-6, 6), 27, vary(a.rng, bark, 0.05))
+    # A pyramid: 4 logs at the bottom, 3 in their grooves, 2 on top; each
+    # layer a little lighter and a hair shorter.
+    cx = w / 2
+    for layer, count in enumerate((4, 3, 2)):
+        col = shade(bark, 0.12 - layer * 0.06) if layer < 2 else tint(bark, 0.06)
+        for k in range(count):
+            x = cx + (k - (count - 1) / 2) * 58
+            inset = 14 + layer * 10
+            log(x, inset + a.rng.uniform(-5, 5), h - inset + a.rng.uniform(-5, 5), 28, vary(a.rng, col, 0.04))
     return a.image()
 
 
