@@ -4,7 +4,7 @@ import math
 
 import skia
 
-from kit import BRASS, IRON, RED, STONE, WOOD, WOOD_DARK, WOOD_LIGHT, board, boards, cabinet, dot, grain_lines, ring, scallop
+from kit import coin, fruit, pile, soft_shadow, BRASS, IRON, RED, STONE, WOOD, WOOD_DARK, WOOD_LIGHT, board, boards, cabinet, dot, grain_lines, ring, scallop
 from pen import DETAIL, FINE, INK, OUTLINE, Art, blob, chaikin, ellipse, mix, rect, rgb, shade, tint, vary
 
 CLAY = rgb("#bf7a4f")
@@ -23,20 +23,26 @@ def vessel(a, cx, cy, r, body, inside, rim=0.78, outline=OUTLINE, fill_inside=No
     a.shape(ellipse(cx, cy, r * rim, r * rim, 64), inside, outline=DETAIL * 1.1, depth=r * 0.15, shade_k=0.0, light_k=0.0, ao=0.6, mottle=0.04, detail=fill_inside)
 
 
-def coins(a, cx, cy, n, spread, r=7):
-    for _ in range(n):
-        ang, d = a.rng.uniform(0, 6.28), spread * math.sqrt(a.rng.random())
-        x, y = cx + d * math.cos(ang), cy + d * math.sin(ang)
-        a.shape(ellipse(x, y, r, r * 0.92, 20), vary(a.rng, GOLD, 0.06), outline=FINE * 1.3, depth=2, shade_k=0.4, light_k=0.5, ao=0, mottle=0)
+def coins(a, cx, cy, n, spread, r=None, ry=None, fill=False):
+    """A heap of coins: a golden mound (so no floor shows between them) with
+    coins piled on it, the top ones lighter. With `fill` (inside a
+    container) the heap runs past the edges, which clip it."""
+    ry = ry or spread
+    if fill:
+        base = rect(cx - spread * 1.3, cy - ry * 1.3, cx + spread * 1.3, cy + ry * 1.3)
+        a.shape(base, shade(GOLD, 0.35), outline=0, depth=1, shade_k=0, light_k=0, ao=0, mottle=0.1)
+        pile(a, cx, cy, spread * 1.25, int(n * 0.7), lambda art, x, y, h: coin(art, x, y, 0.0, r), ry=ry * 1.25, min_gap=0.3)
+    else:
+        mound = blob(cx, cy, spread * 0.92, a.rng, 12, 0.08, ry=ry * 0.92)
+        a.shape(mound, shade(GOLD, 0.15), outline=DETAIL, smooth=True, depth=spread * 0.12, shade_k=0.5, light_k=0.4, ao=0.2, mottle=0.08)
+    pile(a, cx, cy, spread * (1.05 if fill else 0.95), n, lambda art, x, y, h: coin(art, x, y, h, r), ry=ry * (1.05 if fill else 0.95), min_gap=0.3)
 
 
-def apples(a, cx, cy, n, spread, r=13):
-    for _ in range(n):
-        ang, d = a.rng.uniform(0, 6.28), spread * math.sqrt(a.rng.random())
-        x, y = cx + d * math.cos(ang), cy + d * math.sin(ang)
-        col = APPLE if a.rng.random() < 0.7 else rgb("#9cb34a")
-        a.shape(ellipse(x, y, r, r, 24), vary(a.rng, col, 0.05), outline=DETAIL, depth=3, shade_k=0.4, light_k=0.5, mottle=0)
-        a.ink([(x, y), (x + 3, y - 5)], FINE, color=WOOD_DARK)
+def apples(a, cx, cy, n, spread, r=13, kinds=("apple", "apple", "green")):
+    """Fruit filling a container: a packed bottom layer (darker, lower) over
+    the whole inside, then a heap on it running past the rim (clipped)."""
+    pile(a, cx, cy, spread * 1.25, int(n * 1.2), lambda art, x, y, h: fruit(art, x, y, 0.0, art.rng.choice(kinds)), min_gap=0.7)
+    pile(a, cx, cy, spread * 1.05, n, lambda art, x, y, h: fruit(art, x, y, 0.25 + 0.75 * h, art.rng.choice(kinds)), min_gap=0.9)
 
 
 # -- storage ---------------------------------------------------------------------------------
@@ -52,9 +58,13 @@ def open_chest(seed=101):
     a.shape(rect(10, 64, w - 10, h - 10), WOOD, corner=10, depth=10)
 
     def treasure(art, path):
-        coins(art, w / 2, 145, 60, 90)
-        art.shape(ellipse(100, 130, 12, 12, 20), rgb("#5fb0d8"), outline=DETAIL, depth=3, light_k=0.7, mottle=0)
-        art.shape(ellipse(185, 160, 12, 12, 20), rgb("#d0465a"), outline=DETAIL, depth=3, light_k=0.7, mottle=0)
+        coins(art, w / 2, 150, 110, 118, ry=72, fill=True)
+        for x, y, c in ((92, 128, rgb("#5fb0d8")), (190, 165, rgb("#d0465a")), (150, 120, rgb("#7ccf8a"))):
+            soft_shadow(art, (x, y), 10, 3, 4, 0.35, 3)
+            art.shape([(x, y - 11), (x + 10, y), (x, y + 11), (x - 10, y)], c, outline=DETAIL, corner=1, depth=3, light_k=0.8, mottle=0)
+        soft_shadow(art, (210, 118), 16, 4, 5, 0.4, 4)
+        art.shape(ellipse(210, 118, 16, 16, 28), GOLD, outline=DETAIL, depth=3, light_k=0.5, mottle=0)
+        art.shape(ellipse(210, 118, 10, 10, 20), rgb("#7a2030"), outline=FINE, depth=2, shade_k=0, light_k=0, mottle=0)
 
     a.shape(rect(26, 80, w - 26, h - 26), rgb("#4a3324"), outline=DETAIL * 1.2, corner=6, depth=10, shade_k=0, light_k=0, ao=0.5, detail=treasure)
     return a.image()
@@ -125,25 +135,42 @@ def water_barrel(seed=105):
 
 
 def apple_barrel(seed=106):
-    return open_barrel(seed, (rgb("#4a3324"), lambda art, p: apples(art, 110, 110, 22, 52)))
+    return open_barrel(seed, (rgb("#4a3324"), lambda art, p: apples(art, 110, 110, 26, 60)))
 
 
 def keg(seed=107):
-    w, h = 300, 220
+    """A keg lying on its cradle, seen from above: flat heads at both ends,
+    sides bulging out, staves running its length, iron hoops across."""
+    w, h = 320, 230
     a = Art(w, h, seed)
-    # A keg lying on its stand, tap toward the viewer's right.
-    for x in (50, w - 50):
-        a.shape(rect(x - 14, 20, x + 14, h - 20), WOOD_DARK, outline=DETAIL * 1.3, corner=4, depth=5)
+    for x in (80, w - 80):
+        a.shape(rect(x - 16, 10, x + 16, h - 10), WOOD_DARK, outline=DETAIL * 1.3, corner=5, depth=5)
+    x0, x1 = 34, w - 44
+    half = 76
+    bulge = 22
+
+    def edge(t, side):
+        # side: -1 top edge, +1 bottom edge; the half-width bulges in the middle.
+        y = h / 2 + side * (half - bulge + bulge * math.sin(math.pi * t))
+        return (x0 + (x1 - x0) * t, y)
+
+    top = [edge(j / 20, -1) for j in range(21)]
+    bot = [edge(j / 20, 1) for j in range(21)][::-1]
 
     def staves(art, path):
         for k in range(1, 6):
-            y = 30 + k * (h - 60) / 6
-            art.ink([(40, y), (w - 40, y)], DETAIL * 0.8, color=shade(WOOD, 0.5), alpha=0.85, taper=False)
+            f = -1 + 2 * k / 6
+            art.ink([(x0 + (x1 - x0) * j / 20, h / 2 + f * (half - bulge + bulge * math.sin(math.pi * j / 20))) for j in range(21)], DETAIL * 0.75, color=shade(WOOD, 0.5), alpha=0.85, taper=False)
+        for t in (0.12, 0.3, 0.7, 0.88):
+            hx, hy = edge(t, -1)
+            art.ink([(hx, hy), (hx, h - hy)], DETAIL * 2.4, color=IRON, alpha=1, taper=False, wob=0.2)
+            art.ink([(hx - 3, hy + 2), (hx - 3, h - hy - 2)], FINE, color=tint(IRON, 0.6), alpha=0.8, taper=False)
 
-    a.shape(chaikin([(30, 50), (w / 2, 30), (w - 30, 50), (w - 30, h - 50), (w / 2, h - 30), (30, h - 50)], True, 2), WOOD, depth=12, detail=staves)
-    for x in (80, w - 80):
-        a.ink([(x, 36), (x, h - 36)], DETAIL * 2.2, color=IRON, taper=False)
-    a.shape(rect(w - 34, h / 2 - 8, w - 8, h / 2 + 8), BRASS, outline=DETAIL, corner=3, depth=3, mottle=0)
+    a.shape(top + bot, WOOD, corner=4, depth=14, detail=staves)
+    # The right head shows as a thin ellipse, with the tap.
+    a.shape(ellipse(x1, h / 2, 9, half - bulge, 32), WOOD_LIGHT, outline=DETAIL * 1.2, depth=3, mottle=0)
+    a.shape(rect(x1 + 6, h / 2 - 7, x1 + 32, h / 2 + 7), BRASS, outline=DETAIL, corner=3, depth=3, mottle=0)
+    a.shape(rect(x1 + 24, h / 2 - 13, x1 + 32, h / 2 + 13), BRASS, outline=DETAIL, corner=2, depth=2, mottle=0)
     return a.image()
 
 
@@ -200,7 +227,7 @@ def basket(seed=110, contents=None):
 
 
 def apple_basket(seed=111):
-    return basket(seed, lambda art: apples(art, 105, 105, 14, 46))
+    return basket(seed, lambda art: apples(art, 105, 105, 18, 52))
 
 
 def urn(seed=112, body=CLAY):
@@ -270,21 +297,32 @@ def trough(seed=116):
 
 
 def firewood(seed=117):
-    w, h = 400, 260
+    """Split logs stacked lengthwise, seen from above: two layers, the top
+    one lighter (nearer the light), sawn ends showing at the sides."""
+    w, h = 420, 300
     a = Art(w, h, seed)
-    # Logs stacked, their sawn ends facing us.
-    rows = [(4, 190), (3, 120), (2, 50)]
-    for count, y in rows:
-        x0 = w / 2 - count * 46
-        for k in range(count):
-            cx = x0 + 46 + k * 92 + a.rng.uniform(-4, 4)
+    bark = rgb("#7a5a3e")
 
-            def rings(art, path, cx=cx, y=y):
-                for r in (12, 24):
-                    art.ink(ellipse(cx, y, r, r * 0.9, 32), FINE * 1.1, closed=True, color=shade(WOOD_LIGHT, 0.45), alpha=0.8)
+    def log(y, x0, x1, r, col):
+        def bark_lines(art, path):
+            for k in range(3):
+                yy = y - r * 0.5 + k * r * 0.5 + art.rng.uniform(-2, 2)
+                xa = x0 + art.rng.uniform(10, 40)
+                xb = x1 - art.rng.uniform(10, 40)
+                art.ink([(xa, yy), ((xa + xb) / 2, yy + art.rng.uniform(-2, 2)), (xb, yy)], FINE * 1.1, color=shade(col, 0.5), alpha=0.75)
 
-            a.shape(ellipse(cx, y, 44, 40, 48), WOOD_LIGHT, outline=OUTLINE * 0.85, depth=6, detail=rings)
-            a.ink(ellipse(cx, y, 44, 40, 48), DETAIL * 1.8, closed=True, color=rgb("#6d5040"))
+        a.shape(rect(x0, y - r, x1, y + r), col, outline=OUTLINE * 0.85, corner=r * 0.9, depth=r * 0.25, detail=bark_lines)
+        for ex in (x0 + r * 0.45, x1 - r * 0.45):
+            a.shape(ellipse(ex, y, r * 0.38, r * 0.85, 28), WOOD_LIGHT, outline=DETAIL, depth=2, mottle=0, shade_k=0.2, light_k=0.2)
+            a.ink(ellipse(ex, y, r * 0.18, r * 0.42, 20), FINE, closed=True, color=shade(WOOD_LIGHT, 0.45), alpha=0.8)
+
+    # Bottom layer, then the top layer resting in the gaps (lighter).
+    for k in range(5):
+        y = 46 + k * 52
+        log(y, 20 + a.rng.uniform(-8, 8), w - 20 + a.rng.uniform(-8, 8), 26, vary(a.rng, shade(bark, 0.1), 0.05))
+    for k in range(4):
+        y = 72 + k * 52
+        log(y, 40 + a.rng.uniform(-8, 8), w - 40 + a.rng.uniform(-8, 8), 25, vary(a.rng, bark, 0.05))
     return a.image()
 
 
@@ -306,19 +344,31 @@ def kitchen_counter(seed=118):
 
 
 def oven(seed=119):
-    w, h = 300, 260
-    a = Art(w, h, seed)
-    bricks = rgb("#a8604a")
+    """A domed brick oven from above: courses of bricks in rings, a smoke
+    hole on top, the arched mouth facing the room (bottom) with its glow."""
+    s = 320
+    a = Art(s, s, seed)
+    m = s / 2
+    brick = rgb("#b06a4e")
+    cy = m - 16
+    R = 130
+    # The mouth's vault sticks out toward the viewer.
+    a.shape(rect(m - 52, cy + R - 40, m + 52, s - 10), shade(brick, 0.1), corner=16, depth=8)
 
-    def mortar(art, path):
-        for y in range(30, int(h * 0.7), 26):
-            art.ink([(10, y), (w - 10, y)], FINE * 1.2, color=shade(bricks, 0.5), alpha=0.8, taper=False)
+    def courses(art, path):
+        for r in (36, 62, 88, 112):
+            art.ink(ellipse(m, cy, r, r, 96), DETAIL * 0.8, closed=True, color=shade(brick, 0.5), alpha=0.85)
+            n = int(r / 7)
+            off = art.rng.uniform(0, 1)
+            for k in range(n):
+                t = 2 * math.pi * (k + off) / n
+                art.ink([(m + r * math.cos(t), cy + r * math.sin(t)), (m + (r + 25) * math.cos(t), cy + (r + 25) * math.sin(t))], FINE * 1.1, color=shade(brick, 0.5), alpha=0.75, taper=False)
 
-    a.shape(chaikin([(10, h * 0.75), (10, 60), (w / 2, 10), (w - 10, 60), (w - 10, h * 0.75)], True, 2), bricks, depth=12, detail=mortar)
-    a.shape(rect(10, h * 0.7, w - 10, h - 10), shade(bricks, 0.2), corner=8, depth=6)
-    a.shape(chaikin([(w / 2 - 50, h - 14), (w / 2 - 50, h * 0.74), (w / 2, h * 0.68), (w / 2 + 50, h * 0.74), (w / 2 + 50, h - 14)], True, 2), rgb("#2c2420"), outline=DETAIL * 1.2, depth=6, shade_k=0, light_k=0)
+    a.shape(ellipse(m, cy, R, R, 120), brick, depth=16, light_k=0.35, detail=courses)
+    a.shape(ellipse(m, cy, 22, 22, 32), rgb("#2c2420"), outline=DETAIL * 1.3, depth=6, shade_k=0, light_k=0, ao=0.5)
+    a.shape(rect(m - 34, s - 44, m + 34, s - 10), rgb("#2c2420"), outline=DETAIL * 1.2, corner=10, depth=4, shade_k=0, light_k=0)
     glow = skia.Path()
-    glow.addCircle(w / 2, h - 30, 26)
+    glow.addCircle(m, s - 22, 30)
     a.fill_path(glow, rgb("#ff9a3c"), 0.7, blur=10)
     return a.image()
 
@@ -362,21 +412,24 @@ def sink(seed=122):
 
 
 def wine_rack(seed=123):
-    w, h = 360, 180
+    """A wine rack from above: bottles lying side by side between the rack's
+    rails, necks all pointing one way."""
+    w, h = 400, 260
     a = Art(w, h, seed)
-
-    def bottles(art, x0, y0, x1, y1):
-        x = x0 + 18
-        while x < x1 - 14:
-            art.shape(ellipse(x, (y0 + y1) / 2 - 2, 14, 14, 24), rgb("#3f5a3a"), outline=DETAIL, depth=3, light_k=0.6, mottle=0)
-            dot(art, x, (y0 + y1) / 2 - 2, 4, rgb("#8a2f2f"))
-            x += 34
-
-    cabinet(a, 6, 8, w - 6, h - 8, WOOD_DARK, front=0.36, inside=bottles)
+    a.shape(rect(8, 8, w - 8, h - 8), WOOD_DARK, corner=8, depth=8)
+    a.shape(rect(26, 22, w - 26, h - 22), shade(WOOD_DARK, 0.35), outline=DETAIL, corner=4, depth=6, shade_k=0, light_k=0, ao=0.5)
+    glass = [rgb("#3f5a3a"), rgb("#5a2a3a"), rgb("#4a5a2e")]
+    for k in range(7):
+        y = 44 + k * 29
+        col = a.rng.choice(glass)
+        body = rect(52, y - 12, 250, y + 12)
+        a.shape(body, col, outline=DETAIL * 1.1, corner=11, depth=4, light_k=0.6, mottle=0)
+        a.shape(rect(246, y - 6, 300, y + 6), col, outline=DETAIL, corner=5, depth=2, light_k=0.5, mottle=0)
+        a.shape(rect(296, y - 6, 312, y + 6), rgb("#8a2f2f"), outline=FINE * 1.3, corner=3, depth=1, mottle=0)
+        a.ink([(70, y - 6), (220, y - 6)], FINE * 1.2, color=tint(col, 0.6), alpha=0.8, taper=False)
+    for x in (100, 200):
+        a.shape(rect(x - 8, 14, x + 8, h - 14), WOOD, outline=DETAIL * 1.2, corner=3, depth=3)
     return a.image()
-
-
-# -- tableware & small things -----------------------------------------------------------------
 
 
 def mug(seed=124):
@@ -443,7 +496,7 @@ def fruit_bowl(seed=130):
     s = 200
     a = Art(s, s, seed)
     m = s / 2
-    vessel(a, m, m, m - 10, CERAMIC, tint(CERAMIC, 0.15), rim=0.82, outline=DETAIL * 1.5, fill_inside=lambda art, p: apples(art, m, m, 9, 42, r=17))
+    vessel(a, m, m, m - 10, CERAMIC, tint(CERAMIC, 0.15), rim=0.82, outline=DETAIL * 1.5, fill_inside=lambda art, p: apples(art, m, m, 12, 56, kinds=("apple", "green", "pear")))
     return a.image()
 
 
@@ -506,7 +559,7 @@ def oil_lamp(seed=134):
 def coin_pile(seed=135):
     s = 170
     a = Art(s, s, seed)
-    coins(a, s / 2, s / 2, 50, 60, r=10)
+    coins(a, s / 2, s / 2, 70, 66)
     return a.image()
 
 

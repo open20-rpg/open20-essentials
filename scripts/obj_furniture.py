@@ -25,6 +25,33 @@ def books_row(a, x0, y0, x1, y1):
         x += bw + a.rng.uniform(0.5, 1.5)
 
 
+def raised_shadow(a, seat, raised, blur=10, alpha=0.45):
+    """The soft shadow raised parts (a backrest, arms) cast onto the lower
+    seat next to them: drawn on the seat only."""
+    import skia as _sk
+    from pen import to_path as _tp
+
+    with a.clip(_tp(seat)):
+        for r in raised:
+            q = _tp([(x + 6, y + 8) for x, y in r])
+            a.fill_path(q, INK, alpha, blur=blur)
+
+
+def upholstered(a, seat_boxes, back_box, arm_boxes, frame_box, frame=WOOD_DARK, color=RED):
+    """Seat cushions low, backrest and arms higher: those are a touch lighter
+    and cast a soft shadow onto the seat."""
+    a.shape(rect(*frame_box), frame, corner=24, depth=10)
+    for box in seat_boxes:
+        cushion(a, *box, color=shade(color, 0.08))
+    raised = [rect(*back_box)] + [rect(*b) for b in arm_boxes]
+    for box in seat_boxes:
+        raised_shadow(a, rect(*box), raised)
+    hi = tint(color, 0.1)
+    cushion(a, *back_box, color=hi)
+    for b in arm_boxes:
+        cushion(a, *b, color=hi, tufts=False, corner=14)
+
+
 def bookshelf(seed=10):
     w, h = 512, 170
     a = Art(w, h, seed)
@@ -153,24 +180,14 @@ def clothed_table(seed=69):
 def armchair(seed=70):
     s = 240
     a = Art(s, s, seed)
-    # Frame: back and arms, then the seat cushion (recolorable).
-    a.shape(rect(14, 14, s - 14, s - 18), WOOD_DARK, corner=24, depth=10)
-    cushion(a, 30, 22, s - 30, 70, RED, tufts=True)
-    cushion(a, 20, 66, 56, s - 26, RED, tufts=False, corner=14)
-    cushion(a, s - 56, 66, s - 20, s - 26, RED, tufts=False, corner=14)
-    cushion(a, 56, 70, s - 56, s - 30, RED)
+    upholstered(a, [(56, 66, s - 56, s - 30)], (28, 20, s - 28, 70), [(18, 60, 58, s - 24), (s - 58, 60, s - 18, s - 24)], (12, 12, s - 12, s - 16))
     return a.image()
 
 
 def sofa(seed=71):
     w, h = 512, 220
     a = Art(w, h, seed)
-    a.shape(rect(10, 10, w - 10, h - 14), WOOD_DARK, corner=26, depth=10)
-    cushion(a, 26, 18, w - 26, 72, RED)
-    cushion(a, 16, 62, 64, h - 24, RED, tufts=False, corner=16)
-    cushion(a, w - 64, 62, w - 16, h - 24, RED, tufts=False, corner=16)
-    cushion(a, 64, 70, w / 2, h - 28, RED)
-    cushion(a, w / 2, 70, w - 64, h - 28, RED)
+    upholstered(a, [(62, 68, w / 2, h - 28), (w / 2, 68, w - 62, h - 28)], (24, 16, w - 24, 72), [(14, 58, 64, h - 22), (w - 64, 58, w - 14, h - 22)], (8, 8, w - 8, h - 12))
     return a.image()
 
 
@@ -183,16 +200,33 @@ def footstool(seed=72):
 
 
 def throne(seed=73):
-    w, h = 300, 300
+    """A throne on a stone dais: dark carved wood with gold trim, a tall
+    crested back (lighter: it rises highest), arms ending in gold knobs and a
+    recolorable seat cushion shaded by them."""
+    w, h = 340, 360
     a = Art(w, h, seed)
     gold = rgb("#d6ae4c")
-    back = [(30, 70), (60, 18), (w / 2, 6), (w - 60, 18), (w - 30, 70), (w - 30, 92), (30, 92)]
-    a.shape(back, gold, corner=10, depth=10, light_k=0.5)
-    for x in (60, w / 2, w - 60):
-        a.shape(ellipse(x, 40 if x != w / 2 else 30, 9, 9, 20), rgb("#7aa6c9"), outline=DETAIL, depth=3, light_k=0.6, mottle=0)
-    a.shape(rect(20, 86, 64, h - 16), gold, corner=14, depth=8, light_k=0.5)
-    a.shape(rect(w - 64, 86, w - 20, h - 16), gold, corner=14, depth=8, light_k=0.5)
-    cushion(a, 64, 90, w - 64, h - 24, RED)
+    wood = rgb("#5e3b2a")
+    a.shape(rect(8, 30, w - 8, h - 8), STONE, corner=10, depth=10)
+    a.ink(rect(28, 50, w - 28, h - 28), FINE * 1.3, closed=True, color=shade(STONE, 0.45), alpha=0.8)
+    seat = rect(96, 120, w - 96, h - 70)
+    a.shape(rect(76, 90, w - 76, h - 56), wood, corner=12, depth=8)
+    cushion(a, *seat[0], *seat[2], color=shade(RED, 0.08))
+    crest = chaikin([(64, 112), (64, 64), (110, 50), (w / 2 - 26, 40), (w / 2, 14), (w / 2 + 26, 40), (w - 110, 50), (w - 64, 64), (w - 64, 112)], True, 2)
+    arms = [rect(56, 100, 98, h - 62), rect(w - 98, 100, w - 56, h - 62)]
+    raised_shadow(a, seat, [crest] + arms)
+    for arm in arms:
+        a.shape(arm, tint(wood, 0.1), corner=16, depth=8, light_k=0.45)
+    for x in (77, w - 77):
+        a.shape(ellipse(x, h - 70, 17, 17, 28), gold, outline=DETAIL * 1.3, depth=4, light_k=0.6, mottle=0)
+
+    def carving(art, path):
+        art.ink(chaikin([(84, 100), (84, 72), (120, 62), (w / 2 - 22, 54), (w / 2, 34), (w / 2 + 22, 54), (w - 120, 62), (w - 84, 72), (w - 84, 100)], False, 2), DETAIL, color=gold, alpha=0.95)
+
+    a.shape(crest, tint(wood, 0.16), corner=0, depth=10, light_k=0.5, detail=carving)
+    a.shape(ellipse(w / 2, 34, 13, 13, 24), rgb("#7aa6c9"), outline=DETAIL, depth=3, light_k=0.7, mottle=0)
+    for x in (64, w - 64):
+        a.shape(ellipse(x, 70, 16, 16, 28), gold, outline=DETAIL * 1.3, depth=4, light_k=0.6, mottle=0)
     return a.image()
 
 
@@ -278,26 +312,62 @@ def runner_rug(seed=78):
 
 
 def bearskin_rug(seed=79):
-    w, h = 420, 520
+    """A bear pelt laid flat (after a real one): small head with snout and
+    ears at the top, front legs spread wide, a broad body, hind legs splayed
+    down, a stub of tail; leather trim around the fur, pale claws."""
+    w, h = 460, 540
     a = Art(w, h, seed)
-    fur = rgb("#7a5a40")
-    m = w / 2
-    body = [(m, 40), (m + 60, 90), (m + 160, 120), (m + 120, 200), (m + 110, 330), (m + 180, 430), (m + 70, 420), (m, 480), (m - 70, 420), (m - 180, 430), (m - 110, 330), (m - 120, 200), (m - 160, 120), (m - 60, 90)]
+    cx = w / 2
+    fur = rgb("#7a573c")
+    leather = rgb("#c7a77c")
+    half = [
+        (cx - 26, 64), (cx - 52, 92), (cx - 74, 112),  # neck to shoulder
+        (cx - 130, 100), (cx - 178, 84), (cx - 208, 82),  # front leg, top edge
+        (cx - 222, 96), (cx - 216, 122), (cx - 196, 134),  # paw
+        (cx - 150, 140), (cx - 118, 160),  # front leg, under side
+        (cx - 116, 210), (cx - 124, 270), (cx - 118, 330),  # body side
+        (cx - 136, 384), (cx - 176, 440), (cx - 206, 476),  # hind leg
+        (cx - 200, 500), (cx - 170, 506), (cx - 132, 496),  # paw
+        (cx - 92, 470), (cx - 52, 470), (cx - 18, 486),  # rump to tail
+    ]
+    tail = [(cx - 8, 500), (cx, 506), (cx + 8, 500)]
+    outline = half + tail + [(2 * cx - x, y) for x, y in reversed(half)]
+    trim = chaikin(outline, True, 2)
+    a.shape(trim, leather, depth=6, shade_k=0.3, light_k=0.2, ao=0.0, mottle=0.04)
+    # The fur: the same shape a little smaller, so the trim shows around it.
+    inner = [(cx + (x - cx) * 0.94, 280 + (y - 280) * 0.95) for x, y in trim]
 
-    def fur_lines(art, path):
-        for _ in range(70):
-            x, y = art.rng.uniform(60, w - 60), art.rng.uniform(80, h - 60)
-            if path.contains(x, y):
-                t = math.atan2(y - 260, x - m)
-                art.ink([(x, y), (x + 9 * math.cos(t), y + 9 * math.sin(t))], FINE, color=shade(fur, 0.5), alpha=0.6, wob=0.1)
+    def fur_strokes(art, path):
+        glow = skia.Path()
+        glow.addCircle(cx - 20, 230, 150)
+        art.fill_path(glow, tint(fur, 0.25), 0.5, blur=60)
+        for _ in range(520):
+            x, y = art.rng.uniform(10, w - 10), art.rng.uniform(40, h - 30)
+            if not path.contains(x, y):
+                continue
+            # Hair flows from the spine outward and down.
+            ang = math.atan2(18 + abs(x - cx) * 0.25, (x - cx) * 0.9 + 0.001)
+            ln = art.rng.uniform(8, 14)
+            art.ink([(x, y), (x + ln * math.cos(ang), y + ln * math.sin(ang))], FINE * art.rng.uniform(0.7, 1.0), color=shade(fur, art.rng.uniform(0.35, 0.6)), alpha=0.7, wob=0.2)
 
-    a.shape(chaikin(body, True, 2), fur, depth=12, detail=fur_lines)
-    a.shape(ellipse(m, 70, 46, 52, 40), shade(fur, 0.1), outline=DETAIL * 1.4, depth=8)
-    for dx in (-30, 30):
-        a.shape(ellipse(m + dx, 32, 12, 12, 20), fur, outline=DETAIL, depth=3, mottle=0)
-    dot(a, m - 15, 66, 3.5)
-    dot(a, m + 15, 66, 3.5)
-    a.shape(ellipse(m, 100, 12, 9, 20), rgb("#3a2a22"), outline=FINE, depth=2, mottle=0)
+    import skia
+
+    a.shape(inner, fur, outline=DETAIL * 0.8, depth=14, shade_k=0.45, light_k=0.2, ao=0.35, detail=fur_strokes)
+    # Head: skull, snout, nose, eyes, ears.
+    for dx in (-36, 36):
+        a.shape(ellipse(cx + dx * 1.15, 66, 13, 11, 24), shade(fur, 0.1), outline=DETAIL, depth=3, mottle=0)
+    a.shape(chaikin([(cx - 44, 104), (cx - 46, 72), (cx - 26, 52), (cx + 26, 52), (cx + 46, 72), (cx + 44, 104), (cx, 116)], True, 2), fur, outline=DETAIL * 1.2, depth=8, light_k=0.3)
+    a.shape(chaikin([(cx - 24, 62), (cx - 20, 36), (cx, 28), (cx + 20, 36), (cx + 24, 62)], True, 2), tint(fur, 0.15), outline=DETAIL * 1.2, depth=5, light_k=0.3)
+    a.shape(ellipse(cx, 36, 13, 8, 24), rgb("#2c2220"), outline=FINE * 1.2, depth=2, mottle=0)
+    for dx in (-16, 16):
+        dot(a, cx + dx, 80, 3.6, rgb("#1f1814"))
+    # Claws on all four paws.
+    for px, py, ang in ((cx - 206, 108, math.pi * 1.05), (cx + 206, 108, -math.pi * 0.05), (cx - 182, 494, math.pi * 0.62), (cx + 182, 494, math.pi * 0.38)):
+        ux, uy = math.cos(ang), math.sin(ang)
+        for k in (-1.5, -0.5, 0.5, 1.5):
+            x0, y0 = px - uy * k * 9, py + ux * k * 9
+            a.ink([(x0, y0), (x0 + 13 * ux, y0 + 13 * uy)], DETAIL * 1.2, color=rgb("#efe6d2"), taper=True)
+            a.ink([(x0, y0), (x0 + 13 * ux, y0 + 13 * uy)], FINE * 0.8, color=INK, alpha=0.5, taper=True)
     return a.image()
 
 

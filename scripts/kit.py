@@ -109,3 +109,65 @@ def cushion(a, x0, y0, x1, y1, color=RED, tufts=True, outline=DETAIL * 1.3, corn
                 dot(art, cx + dx, cy, 2.4, shade(color, 0.5), 0.9)
 
     return a.shape(rect(x0, y0, x1, y1), color, outline=outline, corner=r, depth=8, shade_k=0.5, light_k=0.35, detail=tuft)
+
+
+def soft_shadow(a, pts_or_center, r=None, dx=4, dy=5, alpha=0.35, blur=4):
+    """A light shadow under a small item (gives piles a hint of depth)."""
+    p = skia.Path()
+    if r is not None:
+        cx, cy = pts_or_center
+        p.addCircle(cx + dx, cy + dy, r)
+    else:
+        p = to_path([(x + dx, y + dy) for x, y in pts_or_center])
+    a.fill_path(p, INK, alpha, blur=blur)
+
+
+def pile(a, cx, cy, R, n, item, ry=None, min_gap=0.55):
+    """Items heaped in a mound: spread so they overlap only partly, drawn from
+    the bottom of the heap (outer, lower) to its top (center), each with a
+    soft shadow under it. `item(art, x, y, height)` draws one; height is
+    0 at the heap's edge and 1 at its top."""
+    ry = ry or R
+    spots = []
+    tries = 0
+    while len(spots) < n and tries < n * 60:
+        tries += 1
+        ang = a.rng.uniform(0, 2 * math.pi)
+        d = math.sqrt(a.rng.random())
+        x, y = cx + R * d * math.cos(ang), cy + ry * d * math.sin(ang)
+        h = max(0.0, 1 - d * d)
+        if any(math.hypot(x - sx, y - sy) < R * min_gap * 0.18 for sx, sy, _ in spots):
+            continue
+        spots.append((x, y, h))
+    for x, y, h in sorted(spots, key=lambda s: (s[2], s[1])):
+        item(a, x, y, h)
+
+
+def coin(a, x, y, h, r=None):
+    """One gold coin, at a random tilt; lighter higher up the heap."""
+    from pen import mix as _mix
+
+    r = r or a.rng.uniform(7, 10)
+    gold = _mix(shade((226, 184, 78), 0.3), tint((226, 184, 78), 0.25), h)
+    tilt = a.rng.uniform(0.45, 1.0)
+    rot = a.rng.uniform(0, math.pi)
+    soft_shadow(a, (x, y), r * 0.9, 2, 3, 0.3, 2.5)
+    a.shape(ellipse(x, y, r, r * tilt, 24, rot=rot), gold, outline=FINE * 1.3, corner=0, wob=0.1, depth=1.5, shade_k=0.35, light_k=0.5, ao=0, mottle=0)
+    if tilt > 0.7:
+        a.ink(ellipse(x, y, r * 0.62, r * 0.62 * tilt, 20, rot=rot), FINE * 0.7, closed=True, color=shade(gold, 0.4), alpha=0.7, wob=0.1)
+
+
+def fruit(a, x, y, h, kind=None):
+    from pen import mix as _mix
+
+    kind = kind or a.rng.choice(("apple", "apple", "apple", "green", "pear"))
+    base = {"apple": (196, 71, 58), "green": (156, 179, 74), "pear": (210, 190, 80)}[kind]
+    col = _mix(shade(base, 0.25), tint(base, 0.15), h)
+    r = a.rng.uniform(11, 15)
+    soft_shadow(a, (x, y), r, 3, 4, 0.35, 3)
+    if kind == "pear":
+        pts = ellipse(x, y, r * 0.8, r * 1.15, 28, rot=a.rng.uniform(0, 3.14))
+    else:
+        pts = ellipse(x, y, r, r * 0.95, 28)
+    a.shape(pts, col, outline=DETAIL, corner=0, wob=0.2, depth=3, shade_k=0.45, light_k=0.5, ao=0, mottle=0)
+    a.ink([(x, y), (x + 3, y - 5)], FINE, color=(122, 82, 51))
