@@ -184,15 +184,13 @@ def footstool(seed=72):
 
 
 def throne(seed=73):
-    """A throne on a stone dais: dark carved wood with gold trim, a tall
+    """A throne (its dais is a separate object): dark carved wood with gold trim, a tall
     crested back (lighter: it rises highest), arms ending in gold knobs and a
     recolorable seat cushion shaded by them."""
-    w, h = 340, 360
+    w, h = 340, 330
     a = Art(w, h, seed)
     gold = rgb("#d6ae4c")
     wood = rgb("#5e3b2a")
-    a.shape(rect(8, 30, w - 8, h - 8), STONE, corner=10, depth=10)
-    a.ink(rect(28, 50, w - 28, h - 28), FINE * 1.3, closed=True, color=shade(STONE, 0.45), alpha=0.8)
     seat = rect(96, 120, w - 96, h - 70)
     a.shape(rect(76, 90, w - 76, h - 56), wood, corner=12, depth=8)
     cushion(a, *seat[0], *seat[2], color=shade(RED, 0.08))
