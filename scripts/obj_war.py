@@ -456,6 +456,9 @@ WAR = {
     "Round Shield": lambda: bow(trapezoid(round_shield())),
     "Kite Shield": lambda: bow(trapezoid(kite_shield())),
     "Heater Shield": lambda: bow(trapezoid(heater_shield())),
+    "Round Shield (Flat)": round_shield,
+    "Kite Shield (Flat)": kite_shield,
+    "Heater Shield (Flat)": heater_shield,
     "Weapon Rack": weapon_rack,
     "Spear Stand": spear_stand,
     "Armor Stand": armor_stand,
@@ -496,4 +499,4 @@ def _quiver(seed=951):
     return a.image()
 
 
-WAR_COLORABLE = {"Round Shield", "Kite Shield", "Heater Shield", "Armor Stand", "Military Tent", "War Drum", "War Banner"}
+WAR_COLORABLE = {"Round Shield", "Kite Shield", "Heater Shield", "Round Shield (Flat)", "Kite Shield (Flat)", "Heater Shield (Flat)", "Armor Stand", "Military Tent", "War Drum", "War Banner"}
