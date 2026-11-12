@@ -48,41 +48,67 @@ def tiled(img):
     return t
 
 
+def _render(job):
+    """Worker: render one asset to a thumbnail (PNG bytes) and its size."""
+    import io
+
+    si, idx, kind = job
+    title, kind, rows = list(catalog.sections())[si]
+    iid, name, fn, colorable = rows[idx]
+    try:
+        img = preview(fn())
+    except Exception:  # noqa: BLE001 - reported, not fatal
+        return (si, idx, None, traceback.format_exc(limit=2))
+    if kind in ("tileset", "pattern", "terrain"):
+        img = tiled(img)
+    ow, oh = img.size
+    th = img.copy()
+    th.thumbnail((CELL - 2 * PAD, CELL - 2 * PAD), Image.LANCZOS)
+    buf = io.BytesIO()
+    th.save(buf, "PNG")
+    return (si, idx, (buf.getvalue(), ow, oh), None)
+
+
 def main(out):
+    import io
+    from multiprocessing import Pool
+
     os.makedirs(out, exist_ok=True)
-    index = []
-    atlas = None
-    atlas_n = -1
-    slot = COLS * ROWS
+    secs = list(catalog.sections())
+    jobs = [(si, idx, kind) for si, (title, kind, rows) in enumerate(secs) for idx in range(len(rows))]
+    results = {}
     failures = []
+    with Pool(max(1, os.cpu_count() or 1)) as pool:
+        for n, (si, idx, res, err) in enumerate(pool.imap_unordered(_render, jobs, chunksize=2)):
+            if err:
+                failures.append((secs[si][2][idx][0], secs[si][2][idx][1], err))
+            else:
+                results[(si, idx)] = res
+            if n % 100 == 0:
+                print(f"{n}/{len(jobs)}", flush=True)
+    index = []
+    atlas, atlas_n, slot = None, -1, COLS * ROWS
 
     def flush():
         if atlas is not None:
-            atlas.save(os.path.join(out, f"atlas-{atlas_n}.webp"), "WEBP", quality=82, method=5)
+            atlas.save(os.path.join(out, f"atlas-{atlas_n}.webp"), "WEBP", quality=80, method=4)
 
-    for title, kind, rows in catalog.sections():
+    for si, (title, kind, rows) in enumerate(secs):
         sec = {"section": title, "kind": kind, "items": []}
-        for iid, name, fn, colorable in rows:
-            try:
-                img = preview(fn())
-            except Exception:  # noqa: BLE001 - keep going, report it
-                failures.append((iid, name, traceback.format_exc(limit=2)))
+        for idx, (iid, name, fn, colorable) in enumerate(rows):
+            if (si, idx) not in results:
                 continue
-            if kind in ("tileset", "pattern", "terrain"):
-                img = tiled(img)
-            ow, oh = img.size
+            data, ow, oh = results[(si, idx)]
             if slot >= COLS * ROWS:
                 flush()
                 atlas_n += 1
                 atlas = Image.new("RGBA", (COLS * CELL, ROWS * CELL), (0, 0, 0, 0))
                 slot = 0
+            th = Image.open(io.BytesIO(data)).convert("RGBA")
             cx, cy = (slot % COLS) * CELL, (slot // COLS) * CELL
-            th = img.copy()
-            th.thumbnail((CELL - 2 * PAD, CELL - 2 * PAD), Image.LANCZOS)
             atlas.paste(th, (cx + (CELL - th.width) // 2, cy + (CELL - th.height) // 2), th)
             sec["items"].append({"id": iid, "name": name, "atlas": atlas_n, "x": cx, "y": cy, "colorable": colorable, "w": ow, "h": oh})
             slot += 1
-            print(iid, name, flush=True)
         index.append(sec)
     flush()
     with open(os.path.join(out, "assets.json"), "w") as f:
