@@ -292,7 +292,7 @@ def dead_tree(seed=33, size=640):
 
     body = skia.Path()
     # The trunk: wide at its foot (with a few roots), narrowing as it rises.
-    tw0, tw1 = 62, 44
+    tw0, tw1 = 48, 38
     steps = 10
     spine_t = [(base[0] + (crown[0] - base[0]) * t + 6 * math.sin(t * 3), base[1] + (crown[1] - base[1]) * t) for t in [k / steps for k in range(steps + 1)]]
     ns_t = normals(spine_t, False)
@@ -303,7 +303,7 @@ def dead_tree(seed=33, size=640):
     flare = []
     for i in range(80):
         t = 2 * math.pi * i / 80
-        r = 40 * (1 + 0.18 * abs(math.sin(3 * t + 0.5)))
+        r = 28 * (1 + 0.15 * abs(math.sin(3 * t + 0.5)))
         flare.append((base[0] + r * math.cos(t), base[1] + r * 0.55 * math.sin(t)))
     limbs.append((40, flare, []))
     crown_knot = scallop(crown[0], crown[1], 24, a.rng, 9, 0.08)
@@ -312,8 +312,12 @@ def dead_tree(seed=33, size=640):
         body = skia.Op(body, q, skia.kUnion_PathOp) if not body.isEmpty() else q
     a.fill_path(body, bark)
     with a.clip(body):
+        # Darker toward the trunk's foot, lighter up in the limbs.
+        foot = skia.Path()
+        foot.addCircle(base[0], base[1], size * 0.09)
+        a.fill_path(foot, shade(bark, 0.45), 0.6, blur=size * 0.05)
         glow = skia.Path()
-        glow.addCircle(m - size * 0.12, m - size * 0.12, size * 0.3)
+        glow.addCircle(crown[0] - size * 0.06, crown[1] - size * 0.12, size * 0.3)
         a.fill_path(glow, tint(bark, 0.35), 0.45, blur=size * 0.08)
         a.stroke_path(body, shade(bark, 0.4), 6, 0.35, blur=3)
         # Bark: short pen strokes along each limb, either side of its middle,
