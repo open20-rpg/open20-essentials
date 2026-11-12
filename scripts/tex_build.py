@@ -797,7 +797,7 @@ CAVES = {
 
 def roof_tiles(seed, base, kind="shingle", rows=10, gap=None):
     s = SW
-    a = Art(s, s, seed, tile=True, bg=shade(base, 0.3) if gap is None else gap)
+    a = Art(s, s, seed, tile=True, bg=grout(base) if gap is None else gap)
     h = s / rows
     if kind == "thatch":
         for r in range(rows):
@@ -843,7 +843,9 @@ def roof_tiles(seed, base, kind="shingle", rows=10, gap=None):
                 det = lambda art, p, x=x, y0=y0, w=w, c=c: art.ink([(x + w * 0.3, y0 + 4), (x + w * 0.3, y0 + h * 0.8)], FINE * 1.3, color=tint(c, 0.35), alpha=0.8, taper=False)
             elif kind in ("bark", "stone"):
                 det = lambda art, p, c=c: speckles(art, p, shade(c, 0.45), 4)
-            a.shape(pts, c, outline=DETAIL * 1.1, corner=2 if kind != "stone" else 5, wob=0.4, depth=3, shade_k=0.45, light_k=0.3, ao=0.1, mottle=0.03, detail=det, var=0.1)
+            # Overlapping tiles keep a slightly heavier lower edge; flat ones just a joint.
+            jw = JOINT * (1.7 if kind in ("shingle", "clay", "scale", "bark") else 1.2)
+            a.shape(pts, c, outline=jw, outline_color=joint_color(c), outline_alpha=0.85, corner=2 if kind != "stone" else 5, wob=0.4, depth=3, shade_k=0.45, light_k=0.3, ao=0.1, mottle=0.03, detail=det, var=0.1)
             x += w
     return a.image()
 
