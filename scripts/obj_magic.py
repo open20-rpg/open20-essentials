@@ -322,6 +322,43 @@ def tome_stack(seed=622):
     return a.image()
 
 
+def spiral_end(a, cx, cy, rx, ry, ang, color):
+    """The end of a roll of parchment: an oval face with a spiral."""
+    face = [(cx + rx * math.cos(t) * math.cos(ang) - ry * math.sin(t) * math.sin(ang), cy + rx * math.cos(t) * math.sin(ang) + ry * math.sin(t) * math.cos(ang)) for t in [2 * math.pi * k / 32 for k in range(32)]]
+    a.shape(face, tint(color, 0.08), outline=DETAIL, corner=0, wob=0.1, depth=1.5, shade_k=0.25, light_k=0.2, ao=0, mottle=0)
+    sp = []
+    for k in range(40):
+        t = k / 39 * 2.6 * 2 * math.pi
+        f = 0.15 + 0.8 * k / 39
+        lx, ly = rx * f * math.cos(t), ry * f * math.sin(t)
+        sp.append((cx + lx * math.cos(ang) - ly * math.sin(ang), cy + lx * math.sin(ang) + ly * math.cos(ang)))
+    a.ink(sp, FINE * 1.1, color=shade(color, 0.5), alpha=0.85, wob=0.1)
+
+
+def roll(a, x, y, L, half_w, ang, color=PARCH, spiral_at=1, tie=None):
+    """A rolled parchment: slimmer in the middle, its rolled end (one side)
+    showing the spiral."""
+    ux, uy = math.cos(ang), math.sin(ang)
+    px, py = -uy, ux
+    n = 16
+    spine = [(x + ux * L * (i / n - 0.5), y + uy * L * (i / n - 0.5)) for i in range(n + 1)]
+    ws = [half_w * (1 - 0.34 * math.sin(math.pi * i / n)) for i in range(n + 1)]
+    left = [(sx + px * w, sy + py * w) for (sx, sy), w in zip(spine, ws)]
+    right = [(sx - px * w, sy - py * w) for (sx, sy), w in zip(spine, ws)]
+    poly = left + right[::-1]
+    soft_shadow(a, poly, dx=3, dy=4)
+
+    def lines(art, p):
+        for k in (-0.45, 0.4):
+            art.ink([(sx + px * w * k, sy + py * w * k) for (sx, sy), w in zip(spine[1:-1], ws[1:-1])], FINE * 0.9, color=shade(color, 0.4), alpha=0.6, wob=0.2)
+
+    a.shape(poly, color, outline=DETAIL * 1.2, corner=0, wob=0.2, depth=3, light_k=0.4, mottle=0.03, detail=lines)
+    ex, ey = spine[-1] if spiral_at > 0 else spine[0]
+    spiral_end(a, ex, ey, ws[-1] * 0.42, ws[-1], ang, color)
+    if tie:
+        a.ink([(x - px * half_w * 0.8, y - py * half_w * 0.8), (x + px * half_w * 0.8, y + py * half_w * 0.8)], DETAIL * 1.4, color=tie)
+
+
 def scroll(a, x, y, L, ang, open_=False):
     ux, uy = math.cos(ang), math.sin(ang)
     px, py = -uy, ux
@@ -329,16 +366,13 @@ def scroll(a, x, y, L, ang, open_=False):
         sheet_ = [(x - ux * L / 2 - px * 40, y - uy * L / 2 - py * 40), (x + ux * L / 2 - px * 40, y + uy * L / 2 - py * 40), (x + ux * L / 2 + px * 40, y + uy * L / 2 + py * 40), (x - ux * L / 2 + px * 40, y - uy * L / 2 + py * 40)]
         soft_shadow(a, sheet_, dx=4, dy=5)
         a.shape(sheet_, PARCH, outline=DETAIL * 1.2, corner=3, depth=3, detail=lambda art, p: [art.ink([(x - ux * L * 0.35 + px * o, y - uy * L * 0.35 + py * o), (x + ux * L * 0.35 + px * o, y + uy * L * 0.35 + py * o)], FINE * 0.9, color=shade(PARCH, 0.5), alpha=0.7) for o in (-24, -12, 0, 12, 24)])
+        # The rolls at both ends lie across the sheet; each shows its spiral
+        # at the bottom end.
         for e in (-1, 1):
             cx, cy = x + ux * e * L / 2, y + uy * e * L / 2
-            roll = [(cx - px * 46 - ux * 9, cy - py * 46 - uy * 9), (cx + px * 46 - ux * 9, cy + py * 46 - uy * 9), (cx + px * 46 + ux * 9, cy + py * 46 + uy * 9), (cx - px * 46 + ux * 9, cy - py * 46 + uy * 9)]
-            a.shape(roll, tint(PARCH, 0.05), outline=DETAIL * 1.2, corner=8, depth=3, light_k=0.4)
+            roll(a, cx, cy, 96, 11, ang + math.pi / 2, tint(PARCH, 0.05), spiral_at=1)
     else:
-        roll = [(x - ux * L / 2 - px * 12, y - uy * L / 2 - py * 12), (x + ux * L / 2 - px * 12, y + uy * L / 2 - py * 12), (x + ux * L / 2 + px * 12, y + uy * L / 2 + py * 12), (x - ux * L / 2 + px * 12, y - uy * L / 2 + py * 12)]
-        soft_shadow(a, roll, dx=3, dy=4)
-        a.shape(roll, PARCH, outline=DETAIL * 1.2, corner=10, depth=3, light_k=0.4)
-        a.ink([(x - px * 12, y - py * 12), (x + px * 12, y + py * 12)], DETAIL * 1.4, color=rgb("#a8483a"))
-
+        roll(a, x, y, L, 13, ang, PARCH, spiral_at=1, tie=rgb("#a8483a"))
 
 def open_scroll(seed=623):
     w, h = 260, 160
