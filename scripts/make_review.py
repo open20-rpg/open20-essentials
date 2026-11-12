@@ -18,8 +18,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import catalog  # noqa: E402
 
-CELL = 200
-COLS = ROWS = 10
+CELL = int(os.environ.get("REVIEW_CELL", "200"))
+COLS = ROWS = int(os.environ.get("REVIEW_COLS", "10"))
 PAD = 8
 
 
@@ -91,7 +91,7 @@ def main(out):
 
     def flush():
         if atlas is not None:
-            atlas.save(os.path.join(out, f"atlas-{atlas_n}.webp"), "WEBP", quality=80, method=4)
+            atlas.save(os.path.join(out, f"atlas-{atlas_n}.webp"), "WEBP", quality=78, method=4)
 
     for si, (title, kind, rows) in enumerate(secs):
         sec = {"section": title, "kind": kind, "items": []}
