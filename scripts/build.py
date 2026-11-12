@@ -19,13 +19,14 @@ from multiprocessing import Pool
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import catalog  # noqa: E402
+from thumbnails import thumbnail_files  # noqa: E402
 
 PACK_ID = "open20-essentials"
 PACK = {
     "name": "Open20 Essentials",
     "id": PACK_ID,
     # Bump to reinstall it for users that have an older one (see builtin.rs).
-    "version": "2.0.2",
+    "version": "2.0.3",
     "author": "Open20",
     "keywords": "open20, builtin, essentials",
 }
@@ -149,6 +150,8 @@ def main():
             if colorable:
                 tags["Colorable"].append(rel)
     files["data/default.dungeondraft_tags"] = json.dumps({"tags": tags, "sets": {}}, indent=1).encode()
+    # Shipped, not left to Dungeondraft: making thousands itself crashes it.
+    files.update(thumbnail_files(files, PACK_ID))
     write_dir(files)
 
 
