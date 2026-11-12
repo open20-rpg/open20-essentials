@@ -298,7 +298,7 @@ def trough(seed=116):
 
 def firewood(seed=117):
     """Split logs stacked lengthwise, seen from above: two layers, the top
-    one lighter (nearer the light), sawn ends showing top and bottom."""
+    one lighter (nearer the light), sawn ends showing at the near end."""
     w, h = 300, 240
     a = Art(w, h, seed)
     bark = rgb("#7a5a3e")
@@ -312,7 +312,9 @@ def firewood(seed=117):
                 art.ink([(xx, ya), (xx + art.rng.uniform(-2, 2), (ya + yb) / 2), (xx, yb)], FINE * 1.1, color=shade(col, 0.5), alpha=0.75)
 
         a.shape(rect(x - r, y0, x + r, y1), col, outline=OUTLINE * 0.85, corner=r * 0.9, depth=r * 0.25, detail=bark_lines)
-        for ey in (y0 + r * 0.45, y1 - r * 0.45):
+        # Only the near (bottom) end shows its sawn face; the far end is just
+        # the log's rounded edge.
+        for ey in (y1 - r * 0.45,):
             a.shape(ellipse(x, ey, r * 0.85, r * 0.38, 28), WOOD_LIGHT, outline=DETAIL, depth=2, mottle=0, shade_k=0.2, light_k=0.2)
             a.ink(ellipse(x, ey, r * 0.42, r * 0.18, 20), FINE, closed=True, color=shade(WOOD_LIGHT, 0.45), alpha=0.8)
 
