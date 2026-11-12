@@ -748,10 +748,13 @@ TERRAINS = {
 
 
 # ===================================================================================================
-# PATHS (512 x ~150 strips, periodic along x, transparent outside)
+# PATHS (drawn as 512 x ~150 strips, periodic along x, transparent outside;
+# saved at 2x, 1024 x ~300: a path is as wide as its texture is tall, so this
+# puts their stones and boards at the scale of the floors and objects)
 # ===================================================================================================
 
 PW, PH = S2, 150
+PATH_SCALE = 2
 
 
 def path_edges(rng, h=PH, margin=18, amp=6, x0=-40, x1=PW + 40):
@@ -785,7 +788,7 @@ def path_strip(seed, base, edge_ink=True, fill=True, content=None, h=PH, margin=
         ec = rgb(edge_col) if edge_col else shade(base, 0.6)
         for line in (top, bot):
             a.ink(line, 1.9, color=ec, alpha=0.9, taper=False, wob=0.0, var=0.08)
-    return a.image()
+    return a.image(scale=PATH_SCALE)
 
 def stones_in(a, top, bot, cols, r=(14, 22), n=None, outline=2.6, spacing=1.0, rows=2):
     span_t = min(p[1] for p in top if 0 <= p[0] <= PW)

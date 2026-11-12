@@ -66,13 +66,27 @@ def skc(c, a=1.0):
 # -- geometry ------------------------------------------------------------------------------
 
 
+SHARP_TURN = math.radians(50)
+
+
+def turn(a, b, c):
+    """How far the line turns at b going a -> b -> c (radians, 0..pi)."""
+    u = (b[0] - a[0], b[1] - a[1])
+    v = (c[0] - b[0], c[1] - b[1])
+    return abs(math.atan2(u[0] * v[1] - u[1] * v[0], u[0] * v[0] + u[1] * v[1]))
+
+
 def resample(pts, closed, step=3.0):
+    """Points every `step` along the line. Sharp corners (a blade's point, a
+    square corner) are kept as samples: cut by a chord, the ink would run
+    inside the shape's own corner and leave its fill poking out."""
     pts = list(pts)
+    n = len(pts)
     if closed:
         pts = pts + pts[:1]
     out = [pts[0]]
     carry = 0.0
-    for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
+    for i, ((x0, y0), (x1, y1)) in enumerate(zip(pts, pts[1:])):
         L = math.hypot(x1 - x0, y1 - y0)
         if L == 0:
             continue
@@ -82,6 +96,11 @@ def resample(pts, closed, step=3.0):
             out.append((x0 + (x1 - x0) * t, y0 + (y1 - y0) * t))
             d += step
         carry = L - (d - step)
+        j = i + 1
+        if (closed or j < n - 1) and j < n and turn(pts[i], pts[j], pts[(j + 1) % n]) > SHARP_TURN:
+            if out[-1] != (x1, y1):
+                out.append((x1, y1))
+            carry = 0.0
     if closed:
         out.pop()  # drop the duplicate of the first point
     elif out[-1] != pts[-1]:
@@ -336,9 +355,14 @@ class Art:
             left.append((x + nx * h, y + ny * h))
             right.append((x - nx * h, y - ny * h))
         if closed:
+            # The two edges run in opposite directions, so nonzero winding
+            # paints the ring and leaves the inside clear. At a sharp corner
+            # (a blade's point) the inner edge folds over itself: that fold
+            # counts twice, which even-odd would leave unpainted as a pale
+            # notch in the ink.
             path = to_path(left)
             path.addPath(to_path(right[::-1]))
-            path.setFillType(skia.PathFillType.kEvenOdd)
+            path.setFillType(skia.PathFillType.kWinding)
         else:
             path = to_path(left + right[::-1])
             path.setFillType(skia.PathFillType.kWinding)
@@ -446,9 +470,14 @@ class Art:
 
     # -- output --
 
-    def image(self, grain=0.035):
+    def image(self, grain=0.035, scale=1):
+        """The drawing, `scale` times its size in pixels (up to S: the
+        supersampled canvas, so a larger scale is just as sharp)."""
         arr = self.surface.makeImageSnapshot().toarray(colorType=skia.kRGBA_8888_ColorType, alphaType=skia.kUnpremul_AlphaType)
-        img = pastel(Image.fromarray(arr, "RGBA").resize((self.w, self.h), Image.LANCZOS))
+        img = Image.fromarray(arr, "RGBA")
+        if scale != S:
+            img = img.resize((round(self.w * scale), round(self.h * scale)), Image.LANCZOS)
+        img = pastel(img)
         return add_grain(img, grain, self.seed) if grain > 0 else img
 
 

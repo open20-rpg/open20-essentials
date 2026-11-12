@@ -1,4 +1,4 @@
-"""More path strips (512 x ~150, periodic along x, transparent outside the
+"""More path strips (512 x ~150, saved at 2x, periodic along x, transparent outside the
 path): roads, trails, pavings, boardwalks, stepping stones, streams, rails
 and garden borders. Reuses tex_ground's path machinery (an Art in tile
 mode, so whatever crosses x = 0 / 512 comes back on the other side)."""
