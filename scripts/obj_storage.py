@@ -298,31 +298,30 @@ def trough(seed=116):
 
 def firewood(seed=117):
     """Split logs stacked lengthwise, seen from above: two layers, the top
-    one lighter (nearer the light), sawn ends showing at the sides."""
-    w, h = 420, 300
+    one lighter (nearer the light), sawn ends showing top and bottom."""
+    w, h = 300, 240
     a = Art(w, h, seed)
     bark = rgb("#7a5a3e")
 
-    def log(y, x0, x1, r, col):
+    def log(x, y0, y1, r, col):
         def bark_lines(art, path):
             for k in range(3):
-                yy = y - r * 0.5 + k * r * 0.5 + art.rng.uniform(-2, 2)
-                xa = x0 + art.rng.uniform(10, 40)
-                xb = x1 - art.rng.uniform(10, 40)
-                art.ink([(xa, yy), ((xa + xb) / 2, yy + art.rng.uniform(-2, 2)), (xb, yy)], FINE * 1.1, color=shade(col, 0.5), alpha=0.75)
+                xx = x - r * 0.5 + k * r * 0.5 + art.rng.uniform(-2, 2)
+                ya = y0 + art.rng.uniform(10, 30)
+                yb = y1 - art.rng.uniform(10, 30)
+                art.ink([(xx, ya), (xx + art.rng.uniform(-2, 2), (ya + yb) / 2), (xx, yb)], FINE * 1.1, color=shade(col, 0.5), alpha=0.75)
 
-        a.shape(rect(x0, y - r, x1, y + r), col, outline=OUTLINE * 0.85, corner=r * 0.9, depth=r * 0.25, detail=bark_lines)
-        for ex in (x0 + r * 0.45, x1 - r * 0.45):
-            a.shape(ellipse(ex, y, r * 0.38, r * 0.85, 28), WOOD_LIGHT, outline=DETAIL, depth=2, mottle=0, shade_k=0.2, light_k=0.2)
-            a.ink(ellipse(ex, y, r * 0.18, r * 0.42, 20), FINE, closed=True, color=shade(WOOD_LIGHT, 0.45), alpha=0.8)
+        a.shape(rect(x - r, y0, x + r, y1), col, outline=OUTLINE * 0.85, corner=r * 0.9, depth=r * 0.25, detail=bark_lines)
+        for ey in (y0 + r * 0.45, y1 - r * 0.45):
+            a.shape(ellipse(x, ey, r * 0.85, r * 0.38, 28), WOOD_LIGHT, outline=DETAIL, depth=2, mottle=0, shade_k=0.2, light_k=0.2)
+            a.ink(ellipse(x, ey, r * 0.42, r * 0.18, 20), FINE, closed=True, color=shade(WOOD_LIGHT, 0.45), alpha=0.8)
 
-    # Bottom layer, then the top layer resting in the gaps (lighter).
     for k in range(5):
-        y = 46 + k * 52
-        log(y, 20 + a.rng.uniform(-8, 8), w - 20 + a.rng.uniform(-8, 8), 26, vary(a.rng, shade(bark, 0.1), 0.05))
+        x = 34 + k * 58
+        log(x, 14 + a.rng.uniform(-6, 6), h - 14 + a.rng.uniform(-6, 6), 28, vary(a.rng, shade(bark, 0.1), 0.05))
     for k in range(4):
-        y = 72 + k * 52
-        log(y, 40 + a.rng.uniform(-8, 8), w - 40 + a.rng.uniform(-8, 8), 25, vary(a.rng, bark, 0.05))
+        x = 63 + k * 58
+        log(x, 30 + a.rng.uniform(-6, 6), h - 30 + a.rng.uniform(-6, 6), 27, vary(a.rng, bark, 0.05))
     return a.image()
 
 
@@ -413,26 +412,25 @@ def sink(seed=122):
 
 def wine_rack(seed=123):
     """A wine rack from above: a wooden frame packed with bottles lying side
-    by side, all necks toward the front, corks showing."""
-    w, h = 300, 240
+    by side, necks all toward the front (bottom), corks showing."""
+    w, h = 250, 210
     a = Art(w, h, seed)
     a.shape(rect(8, 8, w - 8, h - 8), WOOD_DARK, corner=8, depth=8)
-    a.shape(rect(22, 20, w - 22, h - 20), shade(WOOD_DARK, 0.35), outline=DETAIL, corner=4, depth=6, shade_k=0, light_k=0, ao=0.5)
+    a.shape(rect(20, 18, w - 20, h - 18), shade(WOOD_DARK, 0.35), outline=DETAIL, corner=4, depth=6, shade_k=0, light_k=0, ao=0.5)
     glass = [rgb("#3f5a3a"), rgb("#5a2a3a"), rgb("#4a5a2e")]
-    rows = 6
-    pitch = (h - 44) / rows
+    cols = 6
+    pitch = (w - 40) / cols
     r = pitch / 2 - 1
-    for k in range(rows):
-        y = 22 + pitch * (k + 0.5)
+    for k in range(cols):
+        x = 20 + pitch * (k + 0.5)
         col = a.rng.choice(glass)
-        x0 = 30
-        # Body, shoulder and neck, then the cork poking out at the front.
-        body_end = x0 + 150
-        a.shape(rect(x0, y - r, body_end, y + r), col, outline=DETAIL, corner=r * 0.9, depth=3, light_k=0.6, mottle=0)
-        a.shape(rect(body_end - 6, y - r * 0.42, body_end + 52, y + r * 0.42), col, outline=DETAIL * 0.9, corner=r * 0.4, depth=2, light_k=0.5, mottle=0)
-        a.shape(rect(body_end + 48, y - r * 0.38, body_end + 62, y + r * 0.38), rgb("#b88a5a"), outline=FINE * 1.2, corner=2, depth=1, mottle=0)
-        a.ink([(x0 + 14, y - r * 0.5), (body_end - 16, y - r * 0.5)], FINE * 1.2, color=tint(col, 0.6), alpha=0.8, taper=False)
+        y0, body_end = 24, 24 + 100
+        a.shape(rect(x - r, y0, x + r, body_end), col, outline=DETAIL, corner=r * 0.9, depth=3, light_k=0.6, mottle=0)
+        a.shape(rect(x - r * 0.42, body_end - 6, x + r * 0.42, body_end + 40), col, outline=DETAIL * 0.9, corner=r * 0.4, depth=2, light_k=0.5, mottle=0)
+        a.shape(rect(x - r * 0.38, body_end + 36, x + r * 0.38, body_end + 50), rgb("#b88a5a"), outline=FINE * 1.2, corner=2, depth=1, mottle=0)
+        a.ink([(x - r * 0.5, y0 + 14), (x - r * 0.5, body_end - 16)], FINE * 1.2, color=tint(col, 0.6), alpha=0.8, taper=False)
     return a.image()
+
 
 def mug(seed=124):
     s = 90
