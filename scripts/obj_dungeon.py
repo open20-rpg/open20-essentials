@@ -200,24 +200,6 @@ def execution_block(seed=813):
     return a.image()
 
 
-def iron_maiden(seed=814):
-    w, h = 220, 300
-    a = Art(w, h, seed)
-    # A standing sarcophagus-shaped case, seen from above: its top lid with a
-    # sculpted face, the open door swung to the side showing its spikes.
-    door = chaikin([(110, 40), (210, 60), (210, 250), (110, 270)], True, 1)
-    a.shape(door, DARK_IRON, outline=DETAIL * 1.3, corner=4, depth=5, light_k=0.3)
-    for y in range(80, 250, 28):
-        for x in (140, 175):
-            a.shape([(x, y - 6), (x + 10, y), (x, y + 6)], rgb("#c7ccd4"), outline=FINE, corner=1, depth=1, mottle=0)
-    body = chaikin([(30, 70), (70, 30), (110, 40), (120, 150), (110, 270), (70, 280), (30, 240)], True, 2)
-    a.shape(body, IRON, depth=10, light_k=0.4)
-    a.shape(ellipse(74, 82, 26, 30, 32), tint(IRON, 0.12), outline=DETAIL * 1.2, depth=4, light_k=0.5)
-    for dx in (-8, 8):
-        dot(a, 74 + dx, 78, 3)
-    return a.image()
-
-
 def brazier_irons(seed=815):
     s = 220
     a = Art(s, s, seed)
@@ -311,14 +293,11 @@ def bear_trap(seed=824):
 
 
 def arrow_trap(seed=825):
-    w, h = 200, 120
+    w, h = 200, 60
     a = Art(w, h, seed)
     a.shape(rect(6, 6, w - 6, 40), shade(STONE, 0.2), outline=DETAIL * 1.2, corner=3, depth=4)
     for x in (60, 100, 140):
         a.shape(ellipse(x, 30, 9, 6, 16), rgb("#1e1a18"), outline=FINE * 1.2, depth=1, shade_k=0, light_k=0, mottle=0)
-    for x, y, t in ((70, 96, 1.6), (120, 88, 1.4)):
-        a.ink([(x, y), (x + 50 * math.cos(t + math.pi), y + 50 * math.sin(t + math.pi))], 6, color=INK, taper=False)
-        a.ink([(x, y), (x + 50 * math.cos(t + math.pi), y + 50 * math.sin(t + math.pi))], 3, color=WOOD_LIGHT, taper=False)
     return a.image()
 
 
@@ -453,7 +432,6 @@ DUNGEON = {
     "Rack": rack,
     "Stocks": stocks,
     "Execution Block": execution_block,
-    "Iron Maiden": iron_maiden,
     "Brazier with Irons": brazier_irons,
     "Torture Table": torture_table,
     "Spike Trap": spike_trap,
