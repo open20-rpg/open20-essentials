@@ -5,20 +5,26 @@ floors.P_RED; darker/lighter reds give shading that still recolors."""
 import math
 
 from floors import P_GROUT, P_RED, inset, voronoi_cells
-from pen import DETAIL, FINE, Art, chaikin, ellipse, rect
+from pen import DETAIL, FINE, JOINT, JOINT_ALPHA, Art, chaikin, ellipse, rect
 
 T = 256
 RED = P_RED
 RED_D = (150, 30, 30)
 RED_L = (214, 88, 88)
+# Joint line between tiles/bricks/planks: a dark red (g == b) so it recolors
+# with the pieces, thin, instead of an ink trench around every piece.
+RED_J = (118, 26, 26)
 
 
 def pat(seed, size=T, bg=P_GROUT):
     return Art(size, size, seed, tile=True, bg=bg)
 
 
-def ps(a, pts, col=RED, out=2.4, corner=3, smooth=False, shade_k=0.4, light_k=0.0):
-    a.shape(pts, col, outline=out, corner=corner, smooth=smooth, wob=0.35, depth=3, shade_k=shade_k, light_k=light_k, ao=0.15, mottle=0.0)
+def ps(a, pts, col=RED, out=2.4, corner=3, smooth=False, shade_k=0.4, light_k=0.0, joint=False):
+    if joint:
+        a.shape(pts, col, outline=JOINT, outline_color=RED_J, outline_alpha=JOINT_ALPHA, corner=corner, smooth=smooth, wob=0.3, depth=3, shade_k=shade_k * 0.85, light_k=light_k, ao=0.1, mottle=0.0)
+    else:
+        a.shape(pts, col, outline=out, corner=corner, smooth=smooth, wob=0.35, depth=3, shade_k=shade_k, light_k=light_k, ao=0.15, mottle=0.0)
 
 
 def ring(a, pts, col=RED, w=DETAIL * 1.6):
@@ -57,10 +63,11 @@ def done(a):
 def grid(seed, n=4, gap=3.5, corner=5, alt=None, size=T):
     a = pat(seed, size)
     cell = size / n
+    gap = min(gap, 2.0)
     for i in range(n):
         for j in range(n):
             col = alt if alt and (i + j) % 2 else RED
-            ps(a, rect(i * cell + gap, j * cell + gap, (i + 1) * cell - gap, (j + 1) * cell - gap), col, corner=corner)
+            ps(a, rect(i * cell + gap, j * cell + gap, (i + 1) * cell - gap, (j + 1) * cell - gap), col, corner=corner, joint=True)
     return done(a)
 
 
@@ -68,13 +75,14 @@ def bond(seed, rows=8, per=4, shift=0.5, gap=2.5, alt=False):
     """Running/stack bond bricks: `per` bricks per row, rows offset by `shift`."""
     a = pat(seed)
     h = T / rows
+    gap = min(gap, 1.5)
     w = T / per
     for j in range(rows):
         off = (j * shift % 1) * w
         for i in range(-1, per + 1):
             x0 = i * w + off
             col = RED_D if alt and (i + j) % 3 == 0 else RED
-            ps(a, rect(x0 + gap, j * h + gap, x0 + w - gap, (j + 1) * h - gap), col, corner=2)
+            ps(a, rect(x0 + gap, j * h + gap, x0 + w - gap, (j + 1) * h - gap), col, corner=2, joint=True)
     return done(a)
 
 
@@ -87,8 +95,8 @@ def flemish(seed):
     for j in range(rows):
         x = -u * 0.75 if j % 2 else 0
         while x < T + u:
-            ps(a, rect(x + 2.5, j * h + 2.5, x + u - 2.5, (j + 1) * h - 2.5), RED, corner=2)
-            ps(a, rect(x + u + 2.5, j * h + 2.5, x + 1.5 * u - 2.5, (j + 1) * h - 2.5), RED_D, corner=2)
+            ps(a, rect(x + 1.5, j * h + 1.5, x + u - 1.5, (j + 1) * h - 1.5), RED, corner=2, joint=True)
+            ps(a, rect(x + u + 1.5, j * h + 1.5, x + 1.5 * u - 1.5, (j + 1) * h - 1.5), RED_D, corner=2, joint=True)
             x += 1.5 * u
     return done(a)
 
@@ -112,8 +120,8 @@ def pinwheel(seed, n=2):
                 rect(x0, y0 + q, x0 + q, y0 + P),
             ]
             for k, pc in enumerate(pieces):
-                ps(a, [(px + (2.5 if px < x0 + P / 2 else -2.5), py + (2.5 if py < y0 + P / 2 else -2.5)) for px, py in pc], RED if k % 2 else RED_D, corner=3)
-            ps(a, rect(x0 + q + 2.5, y0 + q + 2.5, x0 + q + s - 2.5, y0 + q + s - 2.5), RED_L, corner=2)
+                ps(a, [(px + (1.5 if px < x0 + P / 2 else -1.5), py + (1.5 if py < y0 + P / 2 else -1.5)) for px, py in pc], RED if k % 2 else RED_D, corner=3, joint=True)
+            ps(a, rect(x0 + q + 1.5, y0 + q + 1.5, x0 + q + s - 1.5, y0 + q + s - 1.5), RED_L, corner=2, joint=True)
     return done(a)
 
 
@@ -126,8 +134,8 @@ def hopscotch(seed):
             ox, oy = (2 * i - j) * u, (i + 2 * j) * u
             if ox < -3 * u or ox > T + u or oy < -3 * u or oy > T + u:
                 continue
-            ps(a, rect(ox + 3, oy + 3, ox + 2 * u - 3, oy + 2 * u - 3), RED, corner=4)
-            ps(a, rect(ox + 2 * u + 3, oy + 3, ox + 3 * u - 3, oy + u - 3), RED_D, corner=2)
+            ps(a, rect(ox + 1.8, oy + 1.8, ox + 2 * u - 1.8, oy + 2 * u - 1.8), RED, corner=4, joint=True)
+            ps(a, rect(ox + 2 * u + 1.8, oy + 1.8, ox + 3 * u - 1.8, oy + u - 1.8), RED_D, corner=2, joint=True)
     return done(a)
 
 
@@ -136,6 +144,7 @@ def basket(seed, units=4, k=2, gap=2.5):
     a = pat(seed)
     b = T / units
     u = b / k
+    gap = min(gap, 1.5)
     for bi in range(units):
         for bj in range(units):
             x0, y0 = bi * b, bj * b
@@ -145,7 +154,7 @@ def basket(seed, units=4, k=2, gap=2.5):
                     r = rect(x0 + gap, y0 + m * u + gap, x0 + b - gap, y0 + (m + 1) * u - gap)
                 else:
                     r = rect(x0 + m * u + gap, y0 + gap, x0 + (m + 1) * u - gap, y0 + b - gap)
-                ps(a, r, RED if m % 2 == 0 else RED_D, corner=2)
+                ps(a, r, RED if m % 2 == 0 else RED_D, corner=2, joint=True)
     return done(a)
 
 
@@ -160,7 +169,7 @@ def herring45(seed, n=8):
     def tr(x, y):
         return ((x - y) / r2 * u, (x + y) / r2 * u)
 
-    g = 2.2
+    g = 1.4
     for k in range(-2 * n, 2 * n + 1):
         for m in range(-n, n + 1):
             ox, oy = k + 2 * m, k - 2 * m
@@ -172,7 +181,7 @@ def herring45(seed, n=8):
                     continue
                 cx, cy = sum(xs) / 4, sum(ys) / 4
                 shrunk = [(cx + (x - cx) * (1 - g / (u * 1.2)), cy + (y - cy) * (1 - g / (u * 1.2))) for x, y in corners]
-                ps(a, shrunk, col, corner=1.5, out=1.8)
+                ps(a, shrunk, col, corner=1.5, out=1.8, joint=True)
     return done(a)
 
 
@@ -187,14 +196,14 @@ def chevron_planks(seed, rows=4):
             x = i * w
             left = [(x, y), (x + w / 2, y + h * 0.35), (x + w / 2, y + h * 0.35 + h - 3), (x, y + h - 3)]
             right = [(x + w / 2, y + h * 0.35), (x + w, y), (x + w, y + h - 3), (x + w / 2, y + h * 0.35 + h - 3)]
-            ps(a, [(px + 1.5, py + 1.5) for px, py in left], RED, corner=1, out=2.0)
-            ps(a, [(px - 1.5, py + 1.5) for px, py in right], RED_D, corner=1, out=2.0)
+            ps(a, [(px + 1.5, py + 1.5) for px, py in left], RED, corner=1, out=2.0, joint=True)
+            ps(a, [(px - 1.5, py + 1.5) for px, py in right], RED_D, corner=1, out=2.0, joint=True)
     return done(a)
 
 
 def planks(seed, rows=6, alt=True):
     """Floor planks (the wood takes the color), staggered butt joints."""
-    a = pat(seed, bg=(120, 96, 80))
+    a = pat(seed, bg=(168, 70, 70))
     h = T / rows
     for j in range(rows):
         x = a.rng.uniform(0, T)
@@ -212,7 +221,7 @@ def planks(seed, rows=6, alt=True):
                     gy = y + h * (0.3 + 0.4 * k)
                     art.ink([(x + 8, gy), (x + ln * 0.6, gy + art.rng.uniform(-1.5, 1.5))], FINE * 0.8, color=(110, 20, 20), alpha=0.5, wob=0.4)
 
-            a.shape(rect(x + 1.5, j * h + 1.5, x + ln - 1.5, (j + 1) * h - 1.5), col, outline=2.2, corner=2, wob=0.4, depth=3, shade_k=0.35, light_k=0.0, ao=0.1, mottle=0.0, detail=grain)
+            a.shape(rect(x + 0.8, j * h + 0.8, x + ln - 0.8, (j + 1) * h - 0.8), col, outline=JOINT, outline_color=RED_J, outline_alpha=JOINT_ALPHA, corner=2, wob=0.4, depth=3, shade_k=0.35, light_k=0.0, ao=0.1, mottle=0.0, detail=grain)
             x += ln
     return done(a)
 
@@ -239,10 +248,10 @@ def shingles_pat(seed, rows=8, round_=True):
 def cobbles_pat(seed, cols=6, jitter=0.35):
     a = pat(seed)
     for (cx, cy), cell in voronoi_cells(T, T, cols, cols, a.rng, jitter):
-        p = inset(cell, 3.5)
+        p = inset(cell, 2.0)
         if len(p) > 2:
             col = (RED, RED_D, RED_L)[a.rng.randint(0, 2)]
-            ps(a, p, col, corner=6, out=2.2)
+            ps(a, p, col, corner=6, out=2.2, joint=True)
     return done(a)
 
 
@@ -255,7 +264,7 @@ def random_mosaic(seed, n=10):
                 continue
             col = (RED, RED_D, RED_L)[a.rng.randint(0, 2)]
             jx, jy = a.rng.uniform(-1.5, 1.5), a.rng.uniform(-1.5, 1.5)
-            ps(a, rect(i * cell + 2.5 + jx, j * cell + 2.5 + jy, (i + 1) * cell - 2.5 + jx, (j + 1) * cell - 2.5 + jy), col, corner=2, out=1.6)
+            ps(a, rect(i * cell + 2.0 + jx, j * cell + 2.0 + jy, (i + 1) * cell - 2.0 + jx, (j + 1) * cell - 2.0 + jy), col, corner=2, out=1.6, joint=True)
     return done(a)
 
 
@@ -271,13 +280,15 @@ def hexes(seed, cols=4, gap=3.0, mode="fill"):
         rows += 1
     rh = T / rows
     r = rh / 1.5
+    if mode in ("fill", "three"):
+        gap = min(gap, 1.5)
     for j in range(rows + 1):
         for i in range(-1, cols + 1):
             cx = i * w + (w / 2 if j % 2 else 0)
             cy = j * rh
             pts = poly(cx, cy, min(r, w / math.sqrt(3)) - gap, 6, math.pi / 6)
             if mode == "fill":
-                ps(a, pts, RED if (i + 2 * j) % 3 else RED_D, corner=2, out=2.2)
+                ps(a, pts, RED if (i + 2 * j) % 3 else RED_D, corner=2, joint=True)
             elif mode == "ring":
                 ring(a, pts)
             elif mode == "dot":
@@ -289,7 +300,7 @@ def hexes(seed, cols=4, gap=3.0, mode="fill"):
                 c = poly(cx, cy, rr, 6, math.pi / 6)
                 for k, col in enumerate((RED_L, RED, RED_D)):
                     q = [(cx, cy), c[2 * k], c[(2 * k + 1) % 6], c[(2 * k + 2) % 6]]
-                    ps(a, q, col, corner=1, out=1.8, shade_k=0.1)
+                    ps(a, q, col, corner=1, shade_k=0.1, joint=True)
     return done(a)
 
 
@@ -322,7 +333,7 @@ def rhombus(seed, n=4, ratio=1.6):
         for i in range(n + 1):
             for ox, oy in ((0, 0), (w / 2, h / 2)):
                 cx, cy = i * w + ox, j * h + oy
-                ps(a, [(cx, cy - h / 2 + 3), (cx + w / 2 - 3, cy), (cx, cy + h / 2 - 3), (cx - w / 2 + 3, cy)], RED if ox == 0 else RED_D, corner=2, out=2.0)
+                ps(a, [(cx, cy - h / 2 + 1.8), (cx + w / 2 - 1.8, cy), (cx, cy + h / 2 - 1.8), (cx - w / 2 + 1.8, cy)], RED if ox == 0 else RED_D, corner=2, out=2.0, joint=True)
     return done(a)
 
 

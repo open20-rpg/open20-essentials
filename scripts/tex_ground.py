@@ -9,10 +9,16 @@ import skia
 from PIL import Image
 
 from floors import P_GROUT, P_RED, crack, inset, speckles, split, voronoi_cells
-from pen import DETAIL, FINE, INK, Art, blob, chaikin, ellipse, mix, periodic_noise, rect, rgb, shade, tint, to_path, vary
+from pen import DETAIL, FINE, INK, JOINT, JOINT_ALPHA, Art, grout, joint_color, blob, chaikin, ellipse, mix, periodic_noise, rect, rgb, shade, tint, to_path, vary
 
 T = 256
 S2 = 2 * T
+
+
+def jkw(c, k=1.0):
+    """Shape kwargs for a piece of masonry/planking: thin joint in the
+    piece's own darker tone instead of a heavy ink outline."""
+    return dict(outline=JOINT * k, outline_color=joint_color(c), outline_alpha=JOINT_ALPHA)
 
 
 def dot(a, x, y, r, color, alpha=1.0):
@@ -28,8 +34,9 @@ def dot(a, x, y, r, color, alpha=1.0):
 
 def planks(seed=1, tones=("#b07d4f", "#a5724a", "#ba8a5a", "#9c6a42"), gap="#3b271b", rows=8, nails=True):
     s = S2
-    a = Art(s, s, seed, tile=True, bg=rgb(gap))
     tones = [rgb(t) for t in tones]
+    # `gap` used to be the dark trench colour; now only nudges the grout.
+    a = Art(s, s, seed, tile=True, bg=mix(grout(tones[0]), rgb(gap), 0.15))
     h = s / rows
     for r in range(rows):
         y = r * h
@@ -48,11 +55,11 @@ def planks(seed=1, tones=("#b07d4f", "#a5724a", "#ba8a5a", "#9c6a42"), gap="#3b2
                     kx, ky = x + art.rng.uniform(ln * 0.25, ln * 0.75), y + h * art.rng.uniform(0.35, 0.65)
                     art.ink(ellipse(kx, ky, 7, min(3.5, h * 0.12), 24), FINE, closed=True, color=shade(c, 0.5), alpha=0.8, wob=0.2)
 
-            a.shape(rect(x + 1.6, y + 1.6, x + ln - 1.6, y + h - 1.6), c, outline=2.6, corner=2.5, wob=0.5, depth=4, shade_k=0.45, light_k=0.3, ao=0.2, mottle=0.05, detail=grain)
+            a.shape(rect(x + 0.8, y + 0.8, x + ln - 0.8, y + h - 0.8), c, **jkw(c), corner=1.5, wob=0.4, depth=3, shade_k=0.35, light_k=0.25, ao=0.12, mottle=0.05, detail=grain)
             if nails:
                 for nx in (x + 9, x + ln - 9):
                     for ny in (y + h * 0.3, y + h * 0.7):
-                        dot(a, nx, ny, 2.2, INK, 0.85)
+                        dot(a, nx, ny, 2.0, shade(c, 0.6), 0.7)
             x += ln
     return a.image()
 
@@ -80,18 +87,18 @@ def herringbone_bricks(size, u):
 
 def herringbone(seed=6, tones=("#b98a5a", "#a87a4c", "#c49866"), gap="#3b271b"):
     s = S2
-    a = Art(s, s, seed, tile=True, bg=rgb(gap))
     tones = [rgb(t) for t in tones]
+    a = Art(s, s, seed, tile=True, bg=mix(grout(tones[0]), rgb(gap), 0.15))
     for x, y, w, h in herringbone_bricks(s, 64):
         c = vary(a.rng, a.rng.choice(tones), 0.04)
         mid = [(x + 8, y + h / 2), (x + w - 8, y + h / 2)] if w > h else [(x + w / 2, y + 8), (x + w / 2, y + h - 8)]
-        a.shape(rect(x + 1.6, y + 1.6, x + w - 1.6, y + h - 1.6), c, outline=2.4, corner=2, wob=0.4, depth=3, shade_k=0.4, light_k=0.3, ao=0.15, mottle=0.04, detail=lambda art, p, mid=mid, c=c: art.ink(mid, FINE * 0.8, color=shade(c, 0.45), alpha=0.6, wob=0.4))
+        a.shape(rect(x + 0.8, y + 0.8, x + w - 0.8, y + h - 0.8), c, **jkw(c), corner=1.5, wob=0.3, depth=3, shade_k=0.35, light_k=0.25, ao=0.1, mottle=0.04, detail=lambda art, p, mid=mid, c=c: art.ink(mid, FINE * 0.8, color=shade(c, 0.45), alpha=0.6, wob=0.4))
     return a.image()
 
 def parquet(seed=7, tones=("#b98a5a", "#a87a4c", "#c79c6a"), gap="#3b271b"):
     s = S2
-    a = Art(s, s, seed, tile=True, bg=rgb(gap))
     tones = [rgb(t) for t in tones]
+    a = Art(s, s, seed, tile=True, bg=mix(grout(tones[0]), rgb(gap), 0.15))
     cell = s / 4
     for bi in range(4):
         for bj in range(4):
@@ -104,16 +111,16 @@ def parquet(seed=7, tones=("#b98a5a", "#a87a4c", "#c79c6a"), gap="#3b271b"):
                 else:
                     x, y, w, h = x0 + k * cell / n, y0, cell / n, cell
                 c = vary(a.rng, a.rng.choice(tones), 0.04)
-                a.shape(rect(x + 1.6, y + 1.6, x + w - 1.6, y + h - 1.6), c, outline=2.3, corner=2, wob=0.3, depth=3, shade_k=0.4, light_k=0.3, ao=0.15, mottle=0.04)
+                a.shape(rect(x + 0.8, y + 0.8, x + w - 0.8, y + h - 0.8), c, **jkw(c), corner=1.5, wob=0.3, depth=3, shade_k=0.35, light_k=0.25, ao=0.1, mottle=0.04)
     return a.image()
 
 
 def flag_floor(seed=2, base="#a9a296", alt=("#b8ae9c", "#968f86"), mortar="#6f685f", n=5, cracks=0.45):
     s = S2
-    a = Art(s, s, seed, tile=True, bg=rgb(mortar))
     base = rgb(base)
+    a = Art(s, s, seed, tile=True, bg=grout(base, rgb(mortar)))
     for (cx, cy), poly in voronoi_cells(s, s, n, n, a.rng, 0.3):
-        p = inset(poly, 4.5)
+        p = inset(poly, 2.0)
         c = vary(a.rng, mix(base, rgb(alt[0]) if a.rng.random() < 0.5 else rgb(alt[1]), a.rng.uniform(0.2, 0.7)), 0.03)
 
         def detail(art, path, cx=cx, cy=cy, c=c):
@@ -121,13 +128,13 @@ def flag_floor(seed=2, base="#a9a296", alt=("#b8ae9c", "#968f86"), mortar="#6f68
             if art.rng.random() < cracks:
                 crack(art, cx + art.rng.uniform(-20, 20), cy + art.rng.uniform(-20, 20), art.rng.uniform(0, 6.28), art.rng.uniform(30, 55))
 
-        a.shape(p, c, outline=3.6, corner=10, wob=1.0, depth=7, shade_k=0.55, light_k=0.4, ao=0.3, detail=detail)
+        a.shape(p, c, **jkw(c, 1.2), corner=8, wob=0.8, depth=5, shade_k=0.45, light_k=0.3, ao=0.18, detail=detail)
     return a.image()
 
 
 def ashlar(seed=4, base=("#8a857d", "#7a756e"), mortar="#4c4842", rows=6):
     s = S2
-    a = Art(s, s, seed, tile=True, bg=rgb(mortar))
+    a = Art(s, s, seed, tile=True, bg=grout(mix(rgb(base[0]), rgb(base[1]), 0.5), rgb(mortar)))
     h = s / rows
     for r in range(rows):
         x = a.rng.uniform(0, s)
@@ -139,31 +146,31 @@ def ashlar(seed=4, base=("#8a857d", "#7a756e"), mortar="#4c4842", rows=6):
                 if art.rng.random() < 0.3:
                     crack(art, x + w * art.rng.uniform(0.2, 0.8), r * h + h * 0.5, art.rng.uniform(0, 6.28), 30)
 
-            a.shape(rect(x + 3, r * h + 3, x + w - 3, r * h + h - 3), c, outline=3.6, corner=8, wob=1.2, depth=7, shade_k=0.6, light_k=0.35, ao=0.3, detail=detail)
+            a.shape(rect(x + 1.5, r * h + 1.5, x + w - 1.5, r * h + h - 1.5), c, **jkw(c, 1.2), corner=5, wob=0.9, depth=5, shade_k=0.45, light_k=0.3, ao=0.18, detail=detail)
             x += w
     return a.image()
 
 
 def cobbles(seed=12, base=("#9a948a", "#857f77", "#a8a296"), mortar="#5e5850", n=9):
     s = S2
-    a = Art(s, s, seed, tile=True, bg=rgb(mortar))
+    a = Art(s, s, seed, tile=True, bg=grout(rgb(base[0]), rgb(mortar)))
     for (cx, cy), poly in voronoi_cells(s, s, n, n, a.rng, 0.35):
-        p = chaikin(inset(poly, 4), True, 2)
+        p = chaikin(inset(poly, 2.2), True, 2)
         c = vary(a.rng, rgb(a.rng.choice(base)), 0.05)
-        a.shape(p, c, outline=3.0, corner=0, wob=0.6, depth=6, shade_k=0.55, light_k=0.45, ao=0.25, detail=lambda art, path, c=c: speckles(art, path, shade(c, 0.45), 6))
+        a.shape(p, c, **jkw(c, 1.2), corner=0, wob=0.5, depth=5, shade_k=0.45, light_k=0.35, ao=0.18, detail=lambda art, path, c=c: speckles(art, path, shade(c, 0.45), 6))
     return a.image()
 
 
 def tiles(seed=13, color="#bf6b45", grout="#dccdb0", n=8, alt=None):
     s = S2
-    a = Art(s, s, seed, tile=True, bg=rgb(grout))
+    a = Art(s, s, seed, tile=True, bg=mix(rgb(grout), rgb(color), 0.25))
     cell = s / n
     for i in range(n):
         for j in range(n):
             x0, y0 = i * cell, j * cell
             col = rgb(alt) if alt and (i + j) % 2 else rgb(color)
             c = vary(a.rng, col, 0.04)
-            a.shape(rect(x0 + 3.5, y0 + 3.5, x0 + cell - 3.5, y0 + cell - 3.5), c, outline=2.8, corner=5, wob=0.5, depth=5, shade_k=0.5, light_k=0.4, ao=0.25)
+            a.shape(rect(x0 + 2, y0 + 2, x0 + cell - 2, y0 + cell - 2), c, **jkw(c), corner=3, wob=0.4, depth=4, shade_k=0.4, light_k=0.3, ao=0.15)
     return a.image()
 
 
@@ -245,9 +252,9 @@ def straw_floor(seed=18):
 
 def rough_stone(seed=19):
     s = S2
-    a = Art(s, s, seed, tile=True, bg=rgb("#3e3a36"))
+    a = Art(s, s, seed, tile=True, bg=grout(rgb("#67625b")))
     for (cx, cy), poly in voronoi_cells(s, s, 4, 4, a.rng, 0.4):
-        p = inset(poly, 3)
+        p = inset(poly, 2)
         c = vary(a.rng, mix(rgb("#6f6a62"), rgb("#5f5a54"), a.rng.random()), 0.04)
 
         def detail(art, path, cx=cx, cy=cy, c=c):
@@ -255,7 +262,7 @@ def rough_stone(seed=19):
             for _ in range(2):
                 crack(art, cx + art.rng.uniform(-40, 40), cy + art.rng.uniform(-40, 40), art.rng.uniform(0, 6.28), art.rng.uniform(40, 80))
 
-        a.shape(p, c, outline=3.6, corner=18, wob=2.0, depth=10, shade_k=0.6, light_k=0.3, ao=0.35, mottle=0.08, detail=detail)
+        a.shape(p, c, **jkw(c, 1.3), corner=18, wob=1.6, depth=8, shade_k=0.5, light_k=0.3, ao=0.25, mottle=0.08, detail=detail)
     return a.image()
 
 
@@ -279,7 +286,7 @@ def mosaic_floor(seed=20):
 
 def brick_floor(seed=21, col=("#a8503b", "#94432f", "#b5604a"), mortar="#c9b9a2"):
     s = S2
-    a = Art(s, s, seed, tile=True, bg=rgb(mortar))
+    a = Art(s, s, seed, tile=True, bg=grout(rgb(col[0]), rgb(mortar)))
     rows = 16
     h = s / rows
     bw = h * 2
@@ -288,7 +295,7 @@ def brick_floor(seed=21, col=("#a8503b", "#94432f", "#b5604a"), mortar="#c9b9a2"
         x = -off
         while x < s:
             c = vary(a.rng, rgb(a.rng.choice(col)), 0.04)
-            a.shape(rect(x + 2, r * h + 2, x + bw - 2, r * h + h - 2), c, outline=2.2, corner=2, wob=0.4, depth=3, shade_k=0.45, light_k=0.3, ao=0.15, mottle=0.03)
+            a.shape(rect(x + 1, r * h + 1, x + bw - 1, r * h + h - 1), c, **jkw(c), corner=1.5, wob=0.3, depth=3, shade_k=0.35, light_k=0.25, ao=0.1, mottle=0.03)
             x += bw
     return a.image()
 
@@ -324,8 +331,14 @@ FLOORS = {
 # ===================================================================================================
 
 
-def pshape(a, pts, out=2.6, corner=3):
-    a.shape(pts, vary(a.rng, P_RED, 0.05), outline=out, corner=corner, wob=0.4, depth=4, shade_k=0.45, light_k=0.0, ao=0.2, mottle=0.0)
+def pshape(a, pts, out=2.6, corner=3, joint=False):
+    """A recolorable piece. `joint` = masonry/tile piece: thin joint in a
+    darker red (g == b, so it recolors with the piece) instead of ink."""
+    c = vary(a.rng, P_RED, 0.05)
+    if joint:
+        a.shape(pts, c, outline=JOINT, outline_color=shade(P_RED, 0.5), outline_alpha=JOINT_ALPHA, corner=corner, wob=0.3, depth=3, shade_k=0.35, light_k=0.0, ao=0.12, mottle=0.0)
+    else:
+        a.shape(pts, c, outline=out, corner=corner, wob=0.4, depth=4, shade_k=0.45, light_k=0.0, ao=0.2, mottle=0.0)
 
 
 def pat(seed):
@@ -335,10 +348,11 @@ def pat(seed):
 def p_tiles(seed=201, n=4, gap=3.5):
     a = pat(seed)
     cell = T / n
+    gap = min(gap, 2.0)
     for i in range(n):
         for j in range(n):
             x0, y0 = i * cell, j * cell
-            pshape(a, rect(x0 + gap, y0 + gap, x0 + cell - gap, y0 + cell - gap), corner=5)
+            pshape(a, rect(x0 + gap, y0 + gap, x0 + cell - gap, y0 + cell - gap), corner=3, joint=True)
     return a.image(grain=0.02)
 
 
@@ -350,7 +364,7 @@ def p_offset_tiles(seed=202):
         off = cell / 2 if j % 2 else 0
         for i in range(-1, n + 1):
             x0, y0 = i * cell + off, j * cell
-            pshape(a, rect(x0 + 3.5, y0 + 3.5, x0 + cell - 3.5, y0 + cell - 3.5), corner=5)
+            pshape(a, rect(x0 + 2, y0 + 2, x0 + cell - 2, y0 + cell - 2), corner=3, joint=True)
     return a.image(grain=0.02)
 
 
@@ -364,9 +378,9 @@ def p_hex(seed=203):
         for i in range(-1, cols + 1):
             cx = i * w + (w / 2 if j % 2 else 0)
             cy = j * rh
-            rr = w / math.sqrt(3) - 2.5
+            rr = w / math.sqrt(3) - 1.5
             pts = [(cx + rr * math.sin(k * math.pi / 3 + math.pi / 6), cy + rr * math.cos(k * math.pi / 3 + math.pi / 6)) for k in range(6)]
-            pshape(a, pts, corner=3)
+            pshape(a, pts, corner=2, joint=True)
     return a.image(grain=0.02)
 
 
@@ -382,14 +396,14 @@ def p_basketweave(seed=204):
                     x, y, w, h = x0, y0 + k * u, 2 * u, u
                 else:
                     x, y, w, h = x0 + k * u, y0, u, 2 * u
-                pshape(a, rect(x + 2.5, y + 2.5, x + w - 2.5, y + h - 2.5), 2.4)
+                pshape(a, rect(x + 1.5, y + 1.5, x + w - 1.5, y + h - 1.5), corner=2, joint=True)
     return a.image(grain=0.02)
 
 
 def p_herringbone(seed=205):
     a = pat(seed)
     for x, y, w, h in herringbone_bricks(T, T / 8):
-        pshape(a, rect(x + 2, y + 2, x + w - 2, y + h - 2), 2.3, 2)
+        pshape(a, rect(x + 1.5, y + 1.5, x + w - 1.5, y + h - 1.5), corner=2, joint=True)
     return a.image(grain=0.02)
 
 def p_diamonds(seed=206):
@@ -473,7 +487,7 @@ def p_brick_bond(seed=211):
         off = 0 if r % 2 == 0 else bw / 2
         for k in range(-1, int(T / bw) + 1):
             x = k * bw + off
-            pshape(a, rect(x + 2, r * h + 2, x + bw - 2, r * h + h - 2), 2.3, 2)
+            pshape(a, rect(x + 1.5, r * h + 1.5, x + bw - 1.5, r * h + h - 1.5), corner=2, joint=True)
     return a.image(grain=0.02)
 
 
@@ -783,7 +797,8 @@ def stones_in(a, top, bot, cols, r=(14, 22), n=None, outline=2.6, spacing=1.0, r
         for k in range(count):
             x = (k + 0.5 + (0.5 if row % 2 else 0)) * PW / count + a.rng.uniform(-4, 4)
             y = span_t + hh * (row + 0.5) / rows + a.rng.uniform(-6, 6)
-            a.shape(blob(x, y, a.rng.uniform(*r), a.rng, 9, 0.18), vary(a.rng, rgb(a.rng.choice(cols)), 0.06), outline=outline, corner=0, wob=0.4, depth=4, shade_k=0.5, light_k=0.4, ao=0.15, mottle=0)
+            c = vary(a.rng, rgb(a.rng.choice(cols)), 0.06)
+            a.shape(blob(x, y, a.rng.uniform(*r), a.rng, 9, 0.18), c, outline=JOINT * 1.3, outline_color=shade(c, 0.6), outline_alpha=0.85, corner=0, wob=0.4, depth=4, shade_k=0.45, light_k=0.35, ao=0.12, mottle=0)
 
 
 def cobble_content(cols):
@@ -816,9 +831,9 @@ def boards_content(color, across=True, gap=26):
             while x < PW - 2:
                 w = gap
                 c = vary(a.rng, col, 0.05)
-                a.shape(rect(x + 1.5, 4, x + w - 1.5, PH - 4), c, outline=2.3, corner=2, wob=0.4, depth=3, shade_k=0.45, light_k=0.3, ao=0.15, mottle=0.04, detail=lambda art, p, x=x, c=c: art.ink([(x + w / 2 + art.rng.uniform(-3, 3), 12), (x + w / 2 + art.rng.uniform(-3, 3), PH - 12)], FINE * 0.8, color=shade(c, 0.45), alpha=0.6))
+                a.shape(rect(x + 0.8, 4, x + w - 0.8, PH - 4), c, **jkw(c), corner=1.5, wob=0.3, depth=3, shade_k=0.35, light_k=0.25, ao=0.1, mottle=0.04, detail=lambda art, p, x=x, c=c: art.ink([(x + w / 2 + art.rng.uniform(-3, 3), 12), (x + w / 2 + art.rng.uniform(-3, 3), PH - 12)], FINE * 0.8, color=shade(c, 0.45), alpha=0.6))
                 for ny in (20, PH - 20):
-                    dot(a, x + w / 2, ny, 2, INK, 0.85)
+                    dot(a, x + w / 2, ny, 2, shade(c, 0.6), 0.7)
                 x += w
         else:
             rows = 5
@@ -827,7 +842,7 @@ def boards_content(color, across=True, gap=26):
                 x = a.rng.uniform(0, PW)
                 for ln in split(PW, a.rng, PW * 0.3, PW * 0.6):
                     c = vary(a.rng, col, 0.05)
-                    a.shape(rect(x + 1.5, r * hh + 1.5, x + ln - 1.5, r * hh + hh - 1.5), c, outline=2.3, corner=2, wob=0.4, depth=3, shade_k=0.45, light_k=0.3, ao=0.15, mottle=0.04)
+                    a.shape(rect(x + 0.8, r * hh + 0.8, x + ln - 0.8, r * hh + hh - 0.8), c, **jkw(c), corner=1.5, wob=0.3, depth=3, shade_k=0.35, light_k=0.25, ao=0.1, mottle=0.04)
                     x += ln
 
     return f
@@ -836,8 +851,9 @@ def boards_content(color, across=True, gap=26):
 def flag_content(cols, n=7):
     def f(a, top, bot):
         for (cx, cy), poly in voronoi_cells(PW, PH, n, 2, a.rng, 0.3):
-            p = inset(poly, 4)
-            a.shape(p, vary(a.rng, rgb(a.rng.choice(cols)), 0.05), outline=2.8, corner=8, wob=0.8, depth=5, shade_k=0.5, light_k=0.4, ao=0.2, detail=lambda art, path: speckles(art, path, shade(rgb(cols[0]), 0.45), 6))
+            p = inset(poly, 2)
+            c = vary(a.rng, rgb(a.rng.choice(cols)), 0.05)
+            a.shape(p, c, **jkw(c, 1.2), corner=7, wob=0.7, depth=4, shade_k=0.4, light_k=0.3, ao=0.15, detail=lambda art, path: speckles(art, path, shade(rgb(cols[0]), 0.45), 6))
 
     return f
 
@@ -851,7 +867,8 @@ def brick_content(cols):
             off = 0 if r % 2 == 0 else bw / 2
             for k in range(-1, int(PW / bw) + 1):
                 x = k * bw + off
-                a.shape(rect(x + 2, r * hh + 2, x + bw - 2, r * hh + hh - 2), vary(a.rng, rgb(a.rng.choice(cols)), 0.05), outline=2.2, corner=2, wob=0.4, depth=3, shade_k=0.45, light_k=0.3, ao=0.15, mottle=0.03)
+                c = vary(a.rng, rgb(a.rng.choice(cols)), 0.05)
+                a.shape(rect(x + 1, r * hh + 1, x + bw - 1, r * hh + hh - 1), c, **jkw(c), corner=1.5, wob=0.3, depth=3, shade_k=0.35, light_k=0.25, ao=0.1, mottle=0.03)
 
     return f
 
@@ -900,15 +917,15 @@ PATHS = {
     "Grass Trail": lambda: path_strip(404, "#9aa86a", content=grass_trail_content, margin=30, amp=9),
     "Narrow Footpath": lambda: path_strip(405, "#a68660", content=dirt_content, margin=42, amp=10),
     "Gravel Path": lambda: path_strip(406, "#8f8b84", content=gravel_content),
-    "Cobblestone Road": lambda: path_strip(407, "#6e6860", content=cobble_content(("#aaa49b", "#958f86", "#a39d93")), margin=10, amp=2),
-    "Red Cobblestone": lambda: path_strip(408, "#6e5a4e", content=cobble_content(("#b07a5e", "#9a6a52", "#a87862")), margin=10, amp=2),
-    "Flagstone Path": lambda: path_strip(409, "#6f685f", content=flag_content(("#a9a296", "#b8ae9c", "#968f86")), margin=10, amp=2),
-    "Sandstone Path": lambda: path_strip(410, "#8a7558", content=flag_content(("#cdb68e", "#d9c49c", "#bfa67e")), margin=10, amp=2),
+    "Cobblestone Road": lambda: path_strip(407, "#858077", content=cobble_content(("#aaa49b", "#958f86", "#a39d93")), margin=10, amp=2),
+    "Red Cobblestone": lambda: path_strip(408, "#8a7064", content=cobble_content(("#b07a5e", "#9a6a52", "#a87862")), margin=10, amp=2),
+    "Flagstone Path": lambda: path_strip(409, "#8a847a", content=flag_content(("#a9a296", "#b8ae9c", "#968f86")), margin=10, amp=2),
+    "Sandstone Path": lambda: path_strip(410, "#a89270", content=flag_content(("#cdb68e", "#d9c49c", "#bfa67e")), margin=10, amp=2),
     "Brick Road": lambda: path_strip(411, "#c9b9a2", content=brick_content(("#a8503b", "#94432f", "#b5604a")), margin=8, amp=1),
     "Yellow Brick Road": lambda: path_strip(412, "#b8a070", content=brick_content(("#d9b04a", "#c9a03e", "#e4c060")), margin=8, amp=1),
     "Stepping Stones": lambda: path_strip(413, "#000000", fill=False, edge_ink=False, content=stepping_content),
     "River Pebbles": lambda: path_strip(414, "#8a8478", content=lambda a, t, b: stones_in(a, t, b, ("#a8a49a", "#8f948f", "#b8ad9a", "#7f857f"), (8, 13), rows=4, outline=2.0)),
-    "Mossy Stones": lambda: path_strip(415, "#6a6a5a", content=mossy_content),
+    "Mossy Stones": lambda: path_strip(415, "#7c7c6c", content=mossy_content),
     "Boardwalk": lambda: path_strip(416, "#9a6c43", content=boards_content("#a8784e", across=True), margin=6, amp=0),
     "Plank Bridge": lambda: path_strip(417, "#9a6c43", content=plank_bridge_content, margin=2, amp=0, edge_ink=False),
     "Wooden Walkway": lambda: path_strip(418, "#9a6c43", content=boards_content("#b8875a", across=False), margin=6, amp=0),
