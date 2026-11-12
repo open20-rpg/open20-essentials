@@ -207,17 +207,42 @@ def crucible(seed=506):
     return a.image()
 
 
+def ingot_top(a, cx, cy, L, W, ang, col, bevel=None, shadow=True):
+    """A cast ingot seen from straight above: the wide base outline, the
+    smaller flat top and the four sloped faces between them, each lit by
+    how it faces the top-left light."""
+    b = bevel if bevel is not None else min(L, W) * 0.22
+    base = rot_pts(rect(cx - L / 2, cy - W / 2, cx + L / 2, cy + W / 2), cx, cy, ang)
+    top = rot_pts(rect(cx - L / 2 + b, cy - W / 2 + b, cx + L / 2 - b, cy + W / 2 - b), cx, cy, ang)
+    if shadow:
+        soft_shadow(a, base, dx=4, dy=5, alpha=0.35)
+    a.shape(base, col, outline=DETAIL * 1.3, corner=2, wob=0.3, depth=2, shade_k=0, light_k=0, ao=0, mottle=0)
+    lx, ly = -0.7071, -0.7071
+    for k in range(4):
+        p0, p1 = base[k], base[(k + 1) % 4]
+        q0, q1 = top[k], top[(k + 1) % 4]
+        mx, my = (p0[0] + p1[0]) / 2 - cx, (p0[1] + p1[1]) / 2 - cy
+        n = math.hypot(mx, my) or 1
+        lit = (mx * lx + my * ly) / n  # outward normal vs light
+        face = tint(col, 0.35 * lit) if lit > 0 else shade(col, -0.3 * lit)
+        a.fill_path(to_path([p0, p1, q1, q0]), face, 1.0)
+    a.shape(top, tint(col, 0.08), outline=FINE * 1.2, corner=1.5, wob=0.2, depth=2, shade_k=0.2, light_k=0.35, ao=0, mottle=0)
+    for k in range(4):
+        a.ink([base[k], top[k]], FINE, color=shade(col, 0.45), alpha=0.75, wob=0.1, taper=False)
+    a.ink(base, DETAIL * 1.3, closed=True, wob=0, var=0.08)
+    a.ink([top[0], (top[0][0] * 0.6 + top[1][0] * 0.4, top[0][1] * 0.6 + top[1][1] * 0.4)], FINE * 1.2, color=tint(col, 0.7), alpha=0.8, taper=True)
+
+
 def ingots(seed=507):
-    w, h = 240, 200
+    w, h = 260, 230
     a = Art(w, h, seed)
     gold, silver, copper = rgb("#e2b84e"), rgb("#c7ccd4"), rgb("#c97a4a")
-    for row, (y, cols) in enumerate(((60, (silver, silver, gold)), (120, (copper, silver, copper)))):
-        for k, col in enumerate(cols):
-            x = 44 + k * 66 + (row * 16)
-            pts = [(x - 26, y - 16), (x + 26, y - 16), (x + 32, y + 18), (x - 32, y + 18)]
-            soft_shadow(a, pts, dx=3, dy=4)
-            a.shape(pts, col, outline=DETAIL * 1.1, corner=3, depth=4, light_k=0.6, mottle=0)
-            a.shape([(x - 18, y - 10), (x + 18, y - 10), (x + 20, y + 10), (x - 20, y + 10)], tint(col, 0.15), outline=FINE, corner=2, depth=1, shade_k=0, light_k=0, ao=0, mottle=0)
+    # Bottom course side by side, a second course laid crosswise on top.
+    for k, col in enumerate((silver, copper, silver)):
+        ingot_top(a, 110, 70 + k * 46, 150, 42, 0, col)
+    for k, col in enumerate((gold, silver)):
+        ingot_top(a, 88 + k * 50, 116, 130, 40, math.pi / 2, col)
+    ingot_top(a, 205, 190, 84, 34, 0.35, copper)
     return a.image()
 
 

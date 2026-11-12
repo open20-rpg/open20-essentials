@@ -7,7 +7,7 @@ import math
 import skia
 
 from kit import *  # noqa: F401,F403
-from pen import DETAIL, FINE, INK, OUTLINE, Art, blob, chaikin, ellipse, mix, rect, rgb, shade, tint, vary
+from pen import DETAIL, FINE, INK, OUTLINE, Art, blob, chaikin, ellipse, mix, rect, rgb, shade, tint, to_path, vary
 
 
 # -- furniture -----------------------------------------------------------------------------
@@ -160,36 +160,41 @@ def crate(seed=8):
 
 
 def bookshelf(seed=10):
+    """Seen from above: the case's top board covers nearly everything; only a
+    thin row of book tops peeks out along the open front."""
     w, h = 512, 150
     a = Art(w, h, seed)
     case = WOOD_DARK
-    a.shape(rect(6, 8, w - 6, h - 8), case, corner=6, depth=8)
-    # The shelf's back board, then books standing in rows between dividers.
-    a.shape(rect(22, 20, w - 22, 42), shade(case, 0.15), outline=DETAIL, corner=2, depth=3, mottle=0, shade_k=0.2, light_k=0.0, ao=0.3)
+    front = h - 12
+    # Dark inside of the case, visible only in the front strip.
+    a.shape(rect(6, 8, w - 6, front), shade(case, 0.35), corner=6, depth=6, shade_k=0, light_k=0, ao=0.4, mottle=0)
     palette = ["#8a3f37", "#3c5a78", "#55743f", "#9a7a37", "#694a6e", "#a85e34", "#2f6461", "#7b5a3c"]
     pages = rgb("#ddcfae")
-    bays = [(22, 170), (178, 334), (342, w - 22)]
-    for x0, x1 in bays:
-        x = x0 + 2
-        while x < x1 - 10:
-            bw = a.rng.uniform(13, 22)
-            if x + bw > x1 - 2:
-                break
-            col = rgb(a.rng.choice(palette))
-            top, bot = 40, 40 + a.rng.uniform(70, 92)
-            if a.rng.random() < 0.12:
-                x += a.rng.uniform(10, 18)  # a gap
-                continue
-            # Cover around a cream block of page edges (seen from above).
-            a.shape(rect(x, top, x + bw, bot), col, outline=DETAIL * 0.9, corner=2, wob=0.3, depth=3, shade_k=0.3, light_k=0.2, ao=0, mottle=0)
-            a.shape(rect(x + 5, top + 5, x + bw - 5, bot - 7), pages, outline=FINE, corner=1, wob=0.2, depth=2, shade_k=0.2, light_k=0, ao=0, mottle=0)
-            x += bw + a.rng.uniform(0.5, 1.5)
-        # A book lying flat on its side at the end of some bays.
-    for x0, x1 in bays[1:]:
-        a.shape(rect(x0 - 8, 16, x0, h - 14), case, outline=DETAIL * 1.2, corner=2, depth=3)
-    lay_x = bays[2][1] - 60
-    a.shape(rect(lay_x, h - 54, lay_x + 50, h - 22), rgb("#3c5a78"), outline=DETAIL * 0.9, corner=3, depth=3, mottle=0)
-    a.shape(rect(lay_x + 4, h - 50, lay_x + 46, h - 30), pages, outline=FINE, corner=1, depth=2, mottle=0, shade_k=0.2, light_k=0)
+    board_y = front - 40
+    x = 22
+    while x < w - 30:
+        bw = a.rng.uniform(12, 20)
+        if x + bw > w - 22:
+            break
+        if a.rng.random() < 0.1:
+            x += a.rng.uniform(8, 16)
+            continue
+        col = rgb(a.rng.choice(palette))
+        stick = a.rng.uniform(22, 34)  # how far the book stands proud of the board
+        a.shape(rect(x, board_y - 20, x + bw, board_y + stick), col, outline=DETAIL * 0.9, corner=2, wob=0.3, depth=2, shade_k=0.3, light_k=0.25, ao=0, mottle=0)
+        a.shape(rect(x + 4.5, board_y - 16, x + bw - 4.5, board_y + stick - 9), pages, outline=FINE, corner=1, wob=0.2, depth=1, shade_k=0.15, light_k=0, ao=0, mottle=0)
+        x += bw + a.rng.uniform(0.5, 1.5)
+    # The top board over the books, casting a soft shadow onto them.
+    a.fill_path(to_path(rect(6, board_y - 2, w - 6, board_y + 9)), INK, 0.35, blur=4)
+
+    def top(art, path):
+        grain_lines(art, 14, 18, w - 14, board_y - 8, 4, shade(case, 0.45), alpha=0.5)
+
+    a.shape(rect(6, 8, w - 6, board_y), case, corner=6, depth=8, light_k=0.4, detail=top)
+    # Side panels run to the front edge.
+    for x0, x1 in ((6, 20), (w - 20, w - 6)):
+        a.shape(rect(x0, board_y - 10, x1, front), case, outline=DETAIL * 1.2, corner=2, depth=3, mottle=0)
+    a.ink(rect(6, 8, w - 6, front), OUTLINE, closed=True, wob=0.3)
     return a.image()
 
 

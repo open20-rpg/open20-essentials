@@ -187,16 +187,23 @@ def stocks(seed=812):
 
 
 def execution_block(seed=813):
-    w, h = 300, 220
+    w, h = 340, 260
     a = Art(w, h, seed)
-    a.shape(scallop(110, 110, 84, a.rng, 12, 0.05), shade(WOOD, 0.1), depth=10, detail=lambda art, p: [art.ink(scallop(110, 110, r, art.rng, 9, 0.03), FINE * 1.1, closed=True, color=shade(WOOD, 0.5), alpha=0.7) for r in (30, 56)])
-    a.shape(ellipse(110, 70, 22, 12, 24), shade(WOOD, 0.35), outline=FINE * 1.2, depth=2, shade_k=0, light_k=0, mottle=0)  # the neck notch
-    with a.clip(to_path(scallop(110, 110, 84, a.rng, 12, 0.05))):
-        a.shape(blob(140, 130, 24, a.rng, 9, 0.3), BLOOD, outline=0, smooth=True, depth=1, shade_k=0, light_k=0.2, ao=0, mottle=0.1)
-    # The headsman's axe leaning on it.
+    bx, by = 140, 120
+    a.shape(scallop(bx, by, 84, a.rng, 12, 0.05), shade(WOOD, 0.1), depth=10, detail=lambda art, p: [art.ink(scallop(bx, by, r, art.rng, 9, 0.03), FINE * 1.1, closed=True, color=shade(WOOD, 0.5), alpha=0.7) for r in (30, 56)])
+    a.shape(ellipse(bx, by - 40, 22, 12, 24), shade(WOOD, 0.35), outline=FINE * 1.2, depth=2, shade_k=0, light_k=0, mottle=0)  # the neck notch
+    with a.clip(to_path(scallop(bx, by, 84, a.rng, 12, 0.05))):
+        a.shape(blob(bx + 30, by + 20, 24, a.rng, 9, 0.3), BLOOD, outline=0, smooth=True, depth=1, shade_k=0, light_k=0.2, ao=0, mottle=0.1)
+    # The headsman's axe lying across the block, its head resting on top.
     from obj_craft import axe_at
 
-    axe_at(a, 170, 200, -0.6, 140)
+    ang = math.atan2(-0.62, -0.78)
+    sx, sy = 300, 232
+    shadow = skia.Path()
+    shadow.moveTo(sx + 5, sy + 6)
+    shadow.lineTo(sx + 5 + 150 * math.cos(ang), sy + 6 + 150 * math.sin(ang))
+    a.stroke_path(shadow, INK, 16, 0.3, blur=4)
+    axe_at(a, sx, sy, ang, 150)
     return a.image()
 
 
@@ -253,17 +260,61 @@ def spike_trap(seed=821):
 
 
 def pit_trap(seed=822):
-    s = 256
+    """A spiked pit from above: a stone rim around a deep square shaft whose
+    walls fall away into darkness (lit faces bottom/right, shaded top/left),
+    sharpened stakes standing at the bottom and the snapped cover planks."""
+    s = 300
     a = Art(s, s, seed)
     m = s / 2
-    a.shape(rect(10, 10, s - 10, s - 10), DARK_STONE, corner=4, depth=6)
-    a.shape(rect(26, 26, s - 26, s - 26), rgb("#1e1a18"), outline=DETAIL * 1.3, corner=4, depth=20, shade_k=0, light_k=0, ao=0.7)
-    # Broken trapdoor boards hanging in, spikes at the bottom.
-    for x0 in (30, s - 70):
-        a.shape([(x0, 28), (x0 + 40, 28), (x0 + 34, 90), (x0 + 6, 86)], WOOD_DARK, outline=DETAIL * 1.1, corner=2, depth=3)
-    for _ in range(9):
-        x, y = a.rng.uniform(60, s - 60), a.rng.uniform(110, s - 50)
-        a.shape([(x, y - 9), (x + 6, y + 5), (x - 6, y + 5)], rgb("#6a6c72"), outline=FINE, corner=1, depth=1, mottle=0)
+    o0, o1 = 44, s - 44  # mouth of the pit
+    i0, i1 = 96, s - 96  # bottom (smaller: it's far below)
+    a.shape(rect(14, 14, s - 14, s - 14), DARK_STONE, corner=6, depth=6, detail=lambda art, p: [art.ink(seg, FINE * 1.2, color=shade(DARK_STONE, 0.45), alpha=0.7, taper=False) for seg in (([(14, 90), (o0, 90)]), ([(o1, 170), (s - 14, 170)]), ([(110, 14), (110, o0)]), ([(200, o1), (200, s - 14)]))])
+    wall = rgb("#5c544c")
+    faces = (
+        ([(o0, o0), (o1, o0), (i1, i0), (i0, i0)], shade(wall, 0.45)),  # top wall, faces away from light
+        ([(o0, o0), (i0, i0), (i0, i1), (o0, o1)], shade(wall, 0.3)),
+        ([(o1, o0), (o1, o1), (i1, i1), (i1, i0)], wall),
+        ([(o0, o1), (i0, i1), (i1, i1), (o1, o1)], tint(wall, 0.05)),
+    )
+    for pts, col in faces:
+        a.fill_path(to_path(pts), col, 1.0)
+    # Masonry courses on the shaft walls, and darkness gathering at depth.
+    for t in (0.3, 0.55, 0.78):
+        q = [(o0 + (i0 - o0) * t, o0 + (i0 - o0) * t), (o1 + (i1 - o1) * t, o0 + (i0 - o0) * t), (o1 + (i1 - o1) * t, o1 + (i1 - o1) * t), (o0 + (i0 - o0) * t, o1 + (i1 - o1) * t)]
+        a.ink(q, FINE * 1.2, closed=True, color=INK, alpha=0.45, wob=0.3)
+        a.fill_path(to_path(q), INK, 0.18)
+    for p, q in (((o0, o0), (i0, i0)), ((o1, o0), (i1, i0)), ((o1, o1), (i1, i1)), ((o0, o1), (i0, i1))):
+        a.ink([p, q], FINE * 1.4, color=INK, alpha=0.7, taper=False)
+    a.shape(rect(i0, i0, i1, i1), rgb("#1c1816"), outline=FINE * 1.4, corner=1, depth=4, shade_k=0, light_k=0, ao=0.5, mottle=0)
+    # Stakes on the bottom: taller things lean outward from the centre.
+    for k in range(16):
+        x, y = i0 + 10 + (k % 4) * (i1 - i0 - 20) / 3 + a.rng.uniform(-4, 4), i0 + 10 + (k // 4) * (i1 - i0 - 20) / 3 + a.rng.uniform(-4, 4)
+        dx, dy = (x - m) * 0.35, (y - m) * 0.35
+        tip = (x + dx, y + dy)
+        n = math.hypot(dx, dy) or 1
+        px, py = -dy / n * 4, dx / n * 4
+        a.shape([(x + px, y + py), tip, (x - px, y - py)], rgb("#a07a50"), outline=FINE * 1.2, corner=0.5, depth=1, shade_k=0.3, light_k=0.4, ao=0, mottle=0)
+        dot(a, tip[0], tip[1], 1.6, rgb("#e2d2b0"))
+    a.ink(rect(o0, o0, o1, o1), DETAIL * 1.4, closed=True, wob=0.4)
+    # The snapped cover: planks still hanging from the rim, one fallen in.
+    for y0, ln in ((o0 + 6, 70), (o0 + 40, 46)):
+        pts = [(o0 - 26, y0), (o0 + ln, y0 + 2), (o0 + ln - 8, y0 + 12), (o0 + ln + 4, y0 + 22), (o0 - 26, y0 + 24)]
+        soft_shadow(a, pts, dx=6, dy=8, alpha=0.4, blur=5)
+        a.shape(pts, WOOD_DARK, outline=DETAIL * 1.1, corner=1, depth=3, light_k=0.3)
+    pts = [(o1 + 24, o1 - 70), (o1 - 60, o1 - 64), (o1 - 52, o1 - 52), (o1 - 64, o1 - 44), (o1 + 24, o1 - 46)]
+    soft_shadow(a, pts, dx=6, dy=8, alpha=0.4, blur=5)
+    a.shape(pts, WOOD_DARK, outline=DETAIL * 1.1, corner=1, depth=3, light_k=0.3)
+    fallen = [(i0 + 6, i1 - 30), (i1 - 10, i0 + 40), (i1 - 2, i0 + 52), (i0 + 14, i1 - 18)]
+    a.shape(fallen, shade(WOOD_DARK, 0.45), outline=FINE * 1.4, corner=1, depth=2, shade_k=0, light_k=0, mottle=0)
+    # Twigs and straw that hid the pit, scattered on the rim.
+    for _ in range(22):
+        side = a.rng.randrange(4)
+        t = a.rng.uniform(o0 - 20, o1 + 20)
+        d = a.rng.uniform(18, 34)
+        x, y = [(t, o0 - d), (t, o1 + d), (o0 - d, t), (o1 + d, t)][side]
+        g = a.rng.uniform(0, 6.28)
+        L = a.rng.uniform(10, 22)
+        a.ink([(x, y), (x + L * math.cos(g), y + L * math.sin(g))], FINE * 1.3, color=rgb("#8a6a3a") if a.rng.random() < 0.6 else rgb("#c9b06a"), alpha=0.95, wob=0.3)
     return a.image()
 
 

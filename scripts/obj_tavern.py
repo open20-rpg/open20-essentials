@@ -335,20 +335,61 @@ def keg_on_bar(seed=1217):
     return a.image(grain=0)
 
 
+def roast_chicken(a, cx, cy):
+    """A whole roast chicken breast-up, seen from above: plump body with the
+    breastbone ridge, wings tucked at the sides and two drumsticks splayed
+    at the back end with white bone tips in paper frills; lettuce, tomatoes
+    and lemon around it."""
+    skin = rgb("#c9813e")
+    for x, y, t in ((cx - 70, cy - 36, 0.5), (cx - 76, cy + 30, -0.6), (cx + 10, cy - 56, 0.1)):
+        a.shape(blob(x, y, 20, a.rng, 9, 0.22), rgb("#7ea74a"), outline=DETAIL, smooth=True, depth=2, light_k=0.4, mottle=0, detail=lambda art, p, x=x, y=y, t=t: art.ink([(x - 14 * math.cos(t), y - 14 * math.sin(t)), (x + 14 * math.cos(t), y + 14 * math.sin(t))], FINE, color=shade(rgb("#7ea74a"), 0.45), alpha=0.8))
+    for x, y in ((cx - 48, cy + 50), (cx + 2, cy + 58), (cx - 92, cy - 2)):
+        a.shape(ellipse(x, y, 10, 10, 18), rgb("#d0463a"), outline=DETAIL * 0.9, depth=2, light_k=0.6, mottle=0)
+    lemon = rgb("#efd35a")
+    a.shape(ellipse(cx + 70, cy - 46, 16, 16, 24), lemon, outline=DETAIL, depth=2, light_k=0.3, mottle=0, detail=lambda art, p: [art.ink([(cx + 70, cy - 46), (cx + 70 + 13 * math.cos(t), cy - 46 + 13 * math.sin(t))], FINE * 0.9, color=shade(lemon, 0.35), alpha=0.8) for t in [k * math.pi / 3 for k in range(6)]])
+    body = chaikin([(cx - 62, cy), (cx - 50, cy - 34), (cx - 6, cy - 44), (cx + 34, cy - 36), (cx + 50, cy - 14), (cx + 50, cy + 14), (cx + 34, cy + 36), (cx - 6, cy + 44), (cx - 50, cy + 34)], True, 3)
+    # Drumsticks under the body's back end, splayed outward.
+    for s_ in (-1, 1):
+        t = s_ * 0.55
+        bx, by = cx + 36, cy + s_ * 20
+        ex, ey = bx + 58 * math.cos(t), by + 58 * math.sin(t)
+        leg = chaikin([(bx - 6 * math.sin(t) * -1, by), (bx + 18 * math.cos(t) - 21 * math.sin(t), by + 18 * math.sin(t) + 21 * math.cos(t)), (ex - 6 * math.sin(t), ey + 6 * math.cos(t)), (ex + 6 * math.sin(t), ey - 6 * math.cos(t)), (bx + 18 * math.cos(t) + 21 * math.sin(t), by + 18 * math.sin(t) - 21 * math.cos(t))], True, 2)
+        soft_shadow(a, leg, dx=3, dy=4, alpha=0.3)
+        a.shape(leg, shade(skin, 0.06), outline=DETAIL * 1.2, corner=0, depth=4, light_k=0.45)
+        tx, ty = ex + 10 * math.cos(t), ey + 10 * math.sin(t)
+        a.ink([(ex - 2 * math.cos(t), ey - 2 * math.sin(t)), (tx, ty)], 9, color=INK, taper=False, wob=0)
+        a.ink([(ex - 2 * math.cos(t), ey - 2 * math.sin(t)), (tx, ty)], 4.5, color=CERAMIC, taper=False, wob=0)
+        frill = [(tx + 9 * math.cos(t + k * math.pi / 5) * (1 if k % 2 else 0.6), ty + 9 * math.sin(t + k * math.pi / 5) * (1 if k % 2 else 0.6)) for k in range(10)]
+        a.shape(frill, rgb("#f4efe4"), outline=FINE * 1.3, corner=0.5, depth=1, shade_k=0.2, light_k=0, mottle=0)
+    soft_shadow(a, body, dx=5, dy=6, alpha=0.35)
+
+    def crisp(art, path):
+        for _ in range(26):
+            x, y = cx + art.rng.uniform(-50, 46), cy + art.rng.uniform(-40, 40)
+            art.shape(blob(x, y, art.rng.uniform(2.5, 5), art.rng, 6, 0.3), shade(skin, 0.25), outline=0, smooth=True, depth=1, shade_k=0, light_k=0, ao=0, mottle=0)
+        # Breastbone ridge and the two breast halves catching the light.
+        art.ink(chaikin([(cx - 44, cy - 2), (cx, cy), (cx + 40, cy + 2)], False, 2), FINE * 1.6, color=shade(skin, 0.4), alpha=0.85)
+        for s_ in (-1, 1):
+            art.shape(ellipse(cx - 6, cy + s_ * 18, 30, 12, 24), tint(skin, 0.25), outline=0, depth=1, shade_k=0, light_k=0, ao=0, mottle=0)
+
+    a.shape(body, skin, outline=DETAIL * 1.4, corner=0, depth=8, shade_k=0.5, light_k=0.45, detail=crisp)
+    # Wings folded against the sides near the neck end.
+    for s_ in (-1, 1):
+        wing = chaikin([(cx - 44, cy + s_ * 24), (cx - 22, cy + s_ * 44), (cx + 8, cy + s_ * 48), (cx - 6, cy + s_ * 34), (cx - 30, cy + s_ * 26)], True, 2)
+        a.shape(wing, shade(skin, 0.1), outline=DETAIL, corner=0, depth=3, light_k=0.35, mottle=0)
+
+
 def food_platter(seed=1218, kind="chicken"):
-    w, h = 220, 160
+    big = kind == "chicken"
+    w, h = (280, 200) if big else (220, 160)
     a = Art(w, h, seed)
     cx, cy = w / 2, h / 2
-    soft_shadow(a, ellipse(cx, cy, 96, 66, 48), dx=4, dy=5)
-    a.shape(ellipse(cx, cy, 96, 66, 48), SILVER, depth=4, light_k=0.5)
-    a.ink(ellipse(cx, cy, 82, 54, 48), FINE * 1.2, closed=True, color=shade(SILVER, 0.35), alpha=0.8)
+    rx, ry = (128, 88) if big else (96, 66)
+    soft_shadow(a, ellipse(cx, cy, rx, ry, 48), dx=4, dy=5)
+    a.shape(ellipse(cx, cy, rx, ry, 48), SILVER, depth=4, light_k=0.5)
+    a.ink(ellipse(cx, cy, rx - 14, ry - 12, 48), FINE * 1.2, closed=True, color=shade(SILVER, 0.35), alpha=0.8)
     if kind == "chicken":
-        a.shape(ellipse(cx, cy, 50, 36, 40), rgb("#c47a3a"), outline=DETAIL * 1.3, depth=6, light_k=0.5)
-        for s_ in (-1, 1):
-            a.shape(ellipse(cx + 46, cy + s_ * 20, 18, 11, 20, rot=s_ * 0.5), rgb("#b56a32"), outline=DETAIL, depth=3, light_k=0.4, mottle=0)
-            a.shape(ellipse(cx + 62, cy + s_ * 26, 6, 6, 12), CERAMIC, outline=FINE, depth=1, mottle=0)
-        for x, y in ((cx - 60, cy - 30), (cx - 64, cy + 24), (cx + 10, cy + 46)):
-            a.shape(ellipse(x, y, 10, 10, 16), rgb("#7ea74a"), outline=FINE * 1.2, depth=1, mottle=0)
+        roast_chicken(a, cx - 10, cy)
     elif kind == "ham":
         a.shape(chaikin([(cx - 50, cy - 20), (cx + 10, cy - 36), (cx + 46, cy - 6), (cx + 30, cy + 30), (cx - 30, cy + 34), (cx - 56, cy + 10)], True, 2), rgb("#c46a5a"), outline=DETAIL * 1.3, corner=0, depth=6, light_k=0.4, detail=lambda art, p: [art.ink([(cx - 30 + k * 18, cy - 30), (cx - 40 + k * 18, cy + 30)], FINE * 1.1, color=shade(rgb("#c46a5a"), 0.4), alpha=0.7) for k in range(4)])
         a.shape(ellipse(cx + 54, cy - 6, 14, 10, 20), CERAMIC, outline=DETAIL, depth=2, mottle=0)
@@ -909,16 +950,17 @@ def treasure_sack(seed=1411):
 
 
 def gold_bars(seed=1412):
-    w, h = 260, 200
+    from obj_craft import ingot_top
+
+    w, h = 280, 250
     a = Art(w, h, seed)
-    for row, (y, n, off) in enumerate(((140, 3, 0), (100, 2, 36), (60, 1, 72))):
-        for k in range(n):
-            x = 56 + off + k * 72
-            pts = [(x - 30, y - 18), (x + 30, y - 18), (x + 36, y + 20), (x - 36, y + 20)]
-            soft_shadow(a, pts, dx=3, dy=4)
-            col = tint(GOLD, 0.06 * row)
-            a.shape(pts, col, outline=DETAIL * 1.2, corner=3, depth=4, light_k=0.6, mottle=0)
-            a.shape([(x - 22, y - 12), (x + 22, y - 12), (x + 24, y + 12), (x - 24, y + 12)], tint(col, 0.15), outline=FINE, corner=2, depth=1, shade_k=0, light_k=0, ao=0, mottle=0)
+    # Three courses, each laid crosswise on the one below (seen from above).
+    for k in range(3):
+        ingot_top(a, 140, 72 + k * 50, 170, 46, 0, vary(a.rng, GOLD, 0.03))
+    for k in range(3):
+        ingot_top(a, 90 + k * 50, 122, 150, 44, math.pi / 2, tint(GOLD, 0.04))
+    for k in range(2):
+        ingot_top(a, 140, 98 + k * 50, 120, 42, 0, tint(GOLD, 0.08))
     return a.image()
 
 
@@ -937,27 +979,36 @@ def ornate_urn(seed=1413):
 
 
 def mimic_chest(seed=1414):
-    w, h = 320, 260
+    w, h = 320, 300
     a = Art(w, h, seed)
-    # Lid gaping up behind, rows of teeth on both rims, a tongue lolling out.
-    board(a, 14, 6, w - 14, 86, WOOD_DARK, n=2, corner=10)
-    chest_body(a, 10, 76, w - 10, h - 10, WOOD_DARK, IRON)
-    mouth = rect(28, 92, w - 28, h - 26)
-    a.shape(mouth, rgb("#5a1a22"), outline=DETAIL * 1.3, corner=10, depth=12, shade_k=0, light_k=0, ao=0.6)
-    for y0, d in ((92, 1), (h - 26, -1)):
-        for k in range(10):
-            x = 40 + k * 26
-            a.shape([(x - 10, y0), (x + 10, y0), (x, y0 + d * 24)], rgb("#efe6d2"), outline=FINE * 1.3, corner=1, depth=1, mottle=0)
-    for y0, d in ((86, 1), (h - 20, -1)):
-        for k in range(10):
-            x = 40 + k * 26
-            a.shape([(x - 10, y0), (x + 10, y0), (x, y0 - d * 18)], rgb("#efe6d2"), outline=FINE * 1.3, corner=1, depth=1, mottle=0) if False else None
-    tongue = chaikin([(w / 2 - 30, 140), (w / 2 + 30, 140), (w / 2 + 36, 210), (w / 2 + 10, 236), (w / 2 - 20, 220)], True, 2)
-    a.shape(tongue, rgb("#c8506a"), outline=DETAIL * 1.3, corner=0, depth=4, light_k=0.4)
-    a.ink([(w / 2, 150), (w / 2 + 6, 216)], FINE * 1.4, color=shade(rgb("#c8506a"), 0.5))
-    for x in (60, w - 60):
-        a.shape(ellipse(x, 40, 14, 10, 20), rgb("#f2d24a"), outline=DETAIL, depth=2, light_k=0.5, mottle=0)
-        a.shape(ellipse(x, 40, 3, 8, 12), INKC, outline=0, depth=1, shade_k=0, light_k=0, mottle=0)
+    x0, x1, y0, y1 = 18, w - 18, 14, 196
+    flesh, tongue_c, tooth = rgb("#5a1a22"), rgb("#c8506a"), rgb("#efe6d2")
+    # Seen from above: the lid (nearly closed) covers the chest; along its
+    # front edge it has lifted, showing a dark maw with fangs on both rims and
+    # a long tongue lolling out over the front onto the floor.
+    tongue = chaikin([(w / 2 - 24, y1 + 4), (w / 2 + 26, y1 + 4), (w / 2 + 34, y1 + 40), (w / 2 + 16, h - 22), (w / 2 - 14, h - 12), (w / 2 - 30, y1 + 50)], True, 2)
+    soft_shadow(a, rect(x0, y0, x1, y1 + 24), dx=6, dy=7, alpha=0.35, blur=6)
+    a.shape(rect(x0 + 4, y1 - 20, x1 - 4, y1 + 36), flesh, outline=DETAIL * 1.3, corner=8, depth=8, shade_k=0, light_k=0, ao=0.6)
+    # Lower fangs on the box rim, pointing up into the gap.
+    for k in range(11):
+        x = x0 + 26 + k * (x1 - x0 - 52) / 10
+        a.shape([(x - 8, y1 + 34), (x + 8, y1 + 34), (x, y1 + 14)], tooth, outline=FINE * 1.3, corner=1, depth=1, mottle=0)
+    soft_shadow(a, tongue, dx=4, dy=5, alpha=0.3)
+    a.shape(tongue, tongue_c, outline=DETAIL * 1.3, corner=0, depth=5, light_k=0.4)
+    a.ink(chaikin([(w / 2 + 2, y1 + 4), (w / 2 + 6, y1 + 44), (w / 2 + 2, h - 34)], False, 2), FINE * 1.4, color=shade(tongue_c, 0.5))
+    # The lid, its iron bands, and upper fangs hanging from its front edge.
+    for k in range(10):
+        x = x0 + 36 + k * (x1 - x0 - 72) / 9
+        a.shape([(x - 9, y1 - 6), (x + 9, y1 - 6), (x, y1 + 20)], tooth, outline=FINE * 1.3, corner=1, depth=1, mottle=0)
+    board(a, x0, y0, x1, y1, WOOD_DARK, n=3, corner=10)
+    for x in (x0 + 44, x1 - 44):
+        a.shape(rect(x - 13, y0, x + 13, y1), IRON, outline=DETAIL * 1.3, corner=3, depth=5, mottle=0)
+        for y in (y0 + 18, (y0 + y1) / 2, y1 - 18):
+            dot(a, x, y, 3, tint(IRON, 0.45))
+    # Eyes opened in the lid's wood.
+    for x in (w / 2 - 50, w / 2 + 50):
+        a.shape(ellipse(x, 92, 17, 12, 24), rgb("#f2d24a"), outline=DETAIL * 1.2, depth=2, light_k=0.5, mottle=0)
+        a.shape(ellipse(x, 92, 3.5, 10, 12), INKC, outline=0, depth=1, shade_k=0, light_k=0, mottle=0)
     return a.image()
 
 

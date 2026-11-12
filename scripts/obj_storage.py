@@ -84,8 +84,15 @@ def crate_stack(seed=102):
 def small_crate(seed=103):
     s = 150
     a = Art(s, s, seed)
+    f = 20  # frame board width
     a.shape(rect(8, 8, s - 8, s - 8), WOOD_LIGHT, corner=5, depth=8, detail=lambda art, p: boards(art, 8, 8, s - 8, s - 8, WOOD_LIGHT, 3))
-    a.shape([(26, s - 36), (s - 46, 24), (s - 26, 24), (s - 26, 36), (46, s - 24), (26, s - 24)], WOOD, outline=DETAIL * 1.2, corner=3, depth=5)
+    # Frame boards along the four edges, then the diagonal brace.
+    for x0, y0, x1, y1 in ((8, 8, s - 8, 8 + f), (8, s - 8 - f, s - 8, s - 8), (8, 8 + f, 8 + f, s - 8 - f), (s - 8 - f, 8 + f, s - 8, s - 8 - f)):
+        a.shape(rect(x0, y0, x1, y1), WOOD, outline=DETAIL * 1.2, corner=2, depth=5)
+    a.shape([(8 + f + 2, s - 8 - f - 14), (s - 8 - f - 14, 8 + f + 2), (s - 8 - f - 2, 8 + f + 2), (s - 8 - f - 2, 8 + f + 14), (8 + f + 14, s - 8 - f - 2), (8 + f + 2, s - 8 - f - 2)], WOOD, outline=DETAIL * 1.2, corner=2, depth=5)
+    for x, y in ((18, 18), (s - 18, 18), (18, s - 18), (s - 18, s - 18)):
+        dot(a, x, y, 2.6)
+    a.ink(rect(8, 8, s - 8, s - 8), OUTLINE * 0.85, closed=True, wob=0)
     return a.image()
 
 
