@@ -281,17 +281,42 @@ def dead_tree(seed=33, size=640):
         grow(m, m, ang, size * a.rng.uniform(0.15, 0.19), a.rng.uniform(36, 46), 0)
     for spine, w in twigs:
         a.ink(spine, w + 0.6, color=shade(bark, 0.65), alpha=0.95, taper=True, wob=0.2, var=0.1)
-    # Thinnest first, so thicker limbs cover their forks.
-    for w0, poly, spine in sorted(limbs, key=lambda l: l[0]):
+    # All limbs and the trunk as ONE shape: one outline, no seams at the forks.
+    from pen import to_path
 
-        def grain(art, path, spine=spine, w0=w0):
-            if w0 > 12:
-                art.ink(spine[1:-1], FINE, color=shade(bark, 0.45), alpha=0.7, wob=0.3)
-
-        a.shape(poly, bark, outline=DETAIL * (1.25 if w0 > 20 else 0.95), corner=0, wob=0.15, depth=3, shade_k=0.4, light_k=0.25, ao=0.0, mottle=0)
-    a.shape(scallop(m, m, 40, a.rng, 9, 0.08), bark, outline=OUTLINE, corner=0, depth=7)
-    for rr in (12, 24):
-        a.ink(scallop(m + 2, m + 2, rr, a.rng, 7, 0.05), FINE * 1.1, closed=True, color=shade(bark, 0.5), alpha=0.75)
+    body = skia.Path()
+    trunk = scallop(m, m, 40, a.rng, 9, 0.08)
+    for poly in [trunk] + [p for _, p, _ in limbs]:
+        q = to_path(poly)
+        body = skia.Op(body, q, skia.kUnion_PathOp) if not body.isEmpty() else q
+    a.fill_path(body, bark)
+    with a.clip(body):
+        glow = skia.Path()
+        glow.addCircle(m - size * 0.12, m - size * 0.12, size * 0.3)
+        a.fill_path(glow, tint(bark, 0.35), 0.45, blur=size * 0.08)
+        a.stroke_path(body, shade(bark, 0.4), 6, 0.35, blur=3)
+        # Bark: short pen strokes along each limb, either side of its middle,
+        # uneven lengths with gaps (the same idea as the leaf lines).
+        for w0, poly, spine in limbs:
+            if w0 < 8:
+                continue
+            ns = normals(spine, False)
+            n = len(spine)
+            for f in (-0.28, 0.02, 0.3):
+                j = a.rng.randint(0, 2)
+                while j < n - 2:
+                    run = a.rng.randint(2, 4)
+                    seg = []
+                    for k in range(j, min(n, j + run + 1)):
+                        w = w0 + (w0 * 0.6 - w0) * k / (n - 1)
+                        (px, py), (nx, ny) = spine[k], ns[k]
+                        seg.append((px + nx * w * f, py + ny * w * f))
+                    if len(seg) > 1:
+                        a.ink(seg, FINE * 0.9, color=shade(bark, 0.6), alpha=0.65, wob=0.4)
+                    j += run + a.rng.randint(1, 3)
+        for rr in (12, 24):
+            a.ink(scallop(m + 2, m + 2, rr, a.rng, 7, 0.05), FINE * 1.1, closed=True, color=shade(bark, 0.5), alpha=0.75)
+    a.stroke_path(body, INK, DETAIL * 1.25)
     return a.image()
 
 
