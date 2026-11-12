@@ -285,7 +285,8 @@ def dead_tree(seed=33, size=640):
     from pen import to_path
 
     body = skia.Path()
-    trunk = scallop(m, m, 40, a.rng, 9, 0.08)
+    # The trunk lies under the limbs (seen from above): just their meeting point.
+    trunk = scallop(m, m, 30, a.rng, 9, 0.08)
     for poly in [trunk] + [p for _, p, _ in limbs]:
         q = to_path(poly)
         body = skia.Op(body, q, skia.kUnion_PathOp) if not body.isEmpty() else q
@@ -314,8 +315,6 @@ def dead_tree(seed=33, size=640):
                     if len(seg) > 1:
                         a.ink(seg, FINE * 0.9, color=shade(bark, 0.6), alpha=0.65, wob=0.4)
                     j += run + a.rng.randint(1, 3)
-        for rr in (12, 24):
-            a.ink(scallop(m + 2, m + 2, rr, a.rng, 7, 0.05), FINE * 1.1, closed=True, color=shade(bark, 0.5), alpha=0.75)
     a.stroke_path(body, INK, DETAIL * 1.25)
     return a.image()
 
