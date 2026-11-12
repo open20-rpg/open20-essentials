@@ -138,7 +138,7 @@ def round_shield(seed=901):
     m = s / 2
     my = s * 0.4
     persp = lambda ps: [(m + (x - m) * (1 - 0.22 * (y - (my - 94 * k)) / (2 * 94 * k)), y) for x, y in ps]  # noqa: E731
-    k = 0.72  # squashed: seen from above at an angle
+    k = 0.82  # squashed: seen from above at an angle
     soft_shadow(a, persp(ellipse(m, my, 94, 94 * k, 80)), dx=5, dy=6)
 
     def planks(art, p):
@@ -157,7 +157,7 @@ def round_shield(seed=901):
 
 def kite_shield(seed=902):
     w, h = 200, 300
-    k = 0.72  # squashed: seen from above at an angle
+    k = 0.82  # squashed: seen from above at an angle
     h0 = h
     h = int(h * k)
     a = Art(w, h, seed)
@@ -178,7 +178,7 @@ def kite_shield(seed=902):
 
 def heater_shield(seed=903):
     w, h = 200, 240
-    k = 0.72  # squashed: seen from above at an angle
+    k = 0.82  # squashed: seen from above at an angle
     h0 = h
     h = int(h * k)
     a = Art(w, h, seed)
