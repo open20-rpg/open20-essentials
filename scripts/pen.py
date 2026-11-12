@@ -411,7 +411,7 @@ class Art:
         dark = shade(color, 0.3)
         a = np.zeros((h, w, 4), np.uint8)
         a[..., 0], a[..., 1], a[..., 2] = dark[0], dark[1], dark[2]
-        a[..., 3] = (np.clip((n - 0.45) * 2, 0, 1) * 255 * strength * 1.6).astype(np.uint8)
+        a[..., 3] = (np.clip((n - 0.45) * 2, 0, 1) * 255 * strength * 3).astype(np.uint8)
         light = tint(color, 0.3)
         b = np.zeros((h, w, 4), np.uint8)
         b[..., 0], b[..., 1], b[..., 2] = light[0], light[1], light[2]
