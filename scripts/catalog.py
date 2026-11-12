@@ -36,6 +36,15 @@ SOURCES = [
     ("tex_build", "PORTALS", None, "Puertas y ventanas", "portal", "PO"),
     ("tex_build", "CAVES", None, "Cuevas", "cave", "CU"),
     ("tex_build", "ROOFS", None, "Techos", "roof", "TC"),
+    ("tex_floors2", "FLOORS2", None, "Pisos (más)", "tileset", "PJ"),
+    ("tex_patterns2", "PATTERNS2", None, "Patrones coloreables (más)", "pattern", "PB"),
+    ("tex_terrain2", "TERRAINS2", None, "Terrenos (más)", "terrain", "TF"),
+    ("tex_paths2", "PATHS2", None, "Caminos (más)", "path", "CB"),
+    ("tex_walls2", "WALLS2", None, "Paredes (más)", "wall", "PS"),
+    ("tex_portals2", "PORTALS2", None, "Puertas y ventanas (más)", "portal", "PP"),
+    ("tex_roofs2", "ROOFS2", None, "Techos (más)", "roof", "TD"),
+    ("tex_caves2", "CAVES2", None, "Cuevas (más)", "cave", "CV"),
+    ("tex_caves2", "LIGHTS2", None, "Luces (más)", "light", "LV"),
 ]
 
 
