@@ -129,6 +129,29 @@ def weapon(fn, w, h, ang, x, y, **kw):
     return make
 
 
+def bow(img, amount=0.35):
+    """Curve the image along its height: columns toward the middle sink
+    (a parabola across the width), so straight rows become arcs, as a
+    curved shield looks in perspective. `amount` is the sag relative to the
+    image's height."""
+    import numpy as np
+    from PIL import Image
+    from scipy.ndimage import map_coordinates
+
+    w, h = img.size
+    sag = h * amount
+    H = int(np.ceil(h + sag)) + 2
+    src = np.asarray(img).astype(np.float32)
+    ys, xs = np.mgrid[0:H, 0:w].astype(np.float32)
+    u = (xs - (w - 1) / 2) / ((w - 1) / 2)
+    offset = sag * (1 - u * u)
+    sy = ys - offset
+    out = np.zeros((H, w, 4), np.float32)
+    for c in range(4):
+        out[..., c] = map_coordinates(src[..., c], [sy, xs], order=1, mode="constant", cval=0.0)
+    return Image.fromarray(np.clip(out, 0, 255).astype(np.uint8), "RGBA")
+
+
 def trapezoid(img, height=0.25, bottom=0.75):
     """Seen from above at an angle: the whole image squashed to `height` of
     its height and narrowed toward the bottom (to `bottom` of the width) by
@@ -430,9 +453,9 @@ WAR = {
     "Arrow": weapon(arrow_at, 220, 90, -0.12, 20, 60, L=170),
     "Arrows": lambda: _arrows(),
     "Quiver": lambda: _quiver(),
-    "Round Shield": lambda: trapezoid(round_shield()),
-    "Kite Shield": lambda: trapezoid(kite_shield()),
-    "Heater Shield": lambda: trapezoid(heater_shield()),
+    "Round Shield": lambda: bow(trapezoid(round_shield())),
+    "Kite Shield": lambda: bow(trapezoid(kite_shield())),
+    "Heater Shield": lambda: bow(trapezoid(heater_shield())),
     "Weapon Rack": weapon_rack,
     "Spear Stand": spear_stand,
     "Armor Stand": armor_stand,
