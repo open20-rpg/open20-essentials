@@ -152,7 +152,7 @@ def bow(img, amount=0.35):
     return Image.fromarray(np.clip(out, 0, 255).astype(np.uint8), "RGBA")
 
 
-def trapezoid(img, height=0.25, bottom=0.75):
+def trapezoid(img, height=0.30, bottom=0.75):
     """Seen from above at an angle: the whole image squashed to `height` of
     its height and narrowed toward the bottom (to `bottom` of the width) by
     a smooth perspective warp, so the contents deform evenly as a trapezoid."""
