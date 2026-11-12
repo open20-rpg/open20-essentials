@@ -271,15 +271,41 @@ def _overlay(base_img, seed, draw):
 
 
 def snow(img, seed, amount=0.5):
-    def draw(a):
-        white = rgb("#f2f4f6")
-        for _ in range(int(16 * amount) + 4):
-            x, y = a.rng.uniform(0, S), a.rng.uniform(0, S)
-            pts = blob(x, y, a.rng.uniform(40, 90), a.rng, 10, 0.3, ry=a.rng.uniform(16, 34))
-            # Snow sits soft on the roof: a pale blue-grey edge, not an ink line.
-            a.shape(chaikin(pts, True, 2), white, outline=FINE * 1.1, outline_color=rgb("#aebccb"), outline_alpha=0.8, corner=0, wob=0.4, depth=4, shade_k=0.25, light_k=0.2, ao=0, mottle=0.02)
+    """A blanket of snow lying on the roof: one continuous cover stretched
+    along the courses (snow settles on each row's lip), soft blue-grey
+    edges where it thins out, tiles showing through the bare patches and a
+    faint shadow under the drift edges. `amount` 0.5 = patchy, 1.6 = heavy."""
+    import numpy as np
 
-    return _overlay(img, seed, draw)
+    from pen import periodic_noise
+
+    w, h = img.size
+    # Noise generated narrow and stretched to full width: drifts run along
+    # the courses. Stretching a periodic field keeps it periodic.
+    n = periodic_noise(w // 3, h, 40, seed, 4)
+    n = np.asarray(Image.fromarray((n * 255).astype(np.uint8)).resize((w, h), Image.BICUBIC), np.float32) / 255
+    fine = periodic_noise(w, h, 22, seed + 1, 2)
+    f = n * 0.9 + fine * 0.1
+    thr = float(np.quantile(f, 1 - min(0.85, 0.22 + 0.32 * amount)))
+    cover = np.clip((f - thr) / 0.025, 0, 1)
+    base = np.asarray(img.convert("RGBA"), np.float32)
+    out = base.copy()
+    # Shadow cast below each drift's lower edge (light from the top).
+    sh = np.clip(np.roll(cover, 6, axis=0) - cover, 0, 1)
+    out[..., :3] *= (1 - 0.32 * sh)[..., None]
+    white = np.array([245, 248, 251], np.float32)
+    blue = np.array([186, 202, 220], np.float32)
+    # Drifts are rounded: their lower part turns away from the light.
+    below = np.roll(cover, -9, axis=0)
+    turn = np.clip(1 - below, 0, 1) * cover
+    col = white[None, None] * (1 - 0.75 * turn[..., None]) + blue[None, None] * (0.75 * turn[..., None])
+    out[..., :3] = out[..., :3] * (1 - cover[..., None]) + col * cover[..., None]
+    # A soft pale-blue pen line along the snow's edge, in the pack's inked style.
+    edge = np.clip(cover * (1 - cover) * 4, 0, 1)
+    ink = np.array([150, 168, 190], np.float32)
+    out[..., :3] = out[..., :3] * (1 - 0.7 * edge[..., None]) + ink * (0.7 * edge[..., None])
+    out[..., 3] = np.maximum(base[..., 3], cover * 255)
+    return Image.fromarray(np.clip(out, 0, 255).astype(np.uint8), "RGBA")
 
 
 def moss(img, seed, amount=0.5):
