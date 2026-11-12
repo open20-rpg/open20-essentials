@@ -440,8 +440,21 @@ class Art:
 
     def image(self, grain=0.035):
         arr = self.surface.makeImageSnapshot().toarray(colorType=skia.kRGBA_8888_ColorType, alphaType=skia.kUnpremul_AlphaType)
-        img = Image.fromarray(arr, "RGBA").resize((self.w, self.h), Image.LANCZOS)
+        img = pastel(Image.fromarray(arr, "RGBA").resize((self.w, self.h), Image.LANCZOS))
         return add_grain(img, grain, self.seed) if grain > 0 else img
+
+
+def pastel(img, desat=0.12, lift=0.06):
+    """Nudge every color a little toward pastel: slightly less saturated and a
+    touch lighter (the darkest inks barely move)."""
+    a = np.asarray(img).astype(np.float32)
+    rgb_ = a[..., :3]
+    lum = (rgb_ @ np.array([0.299, 0.587, 0.114], np.float32))[..., None]
+    rgb_ = rgb_ + (lum - rgb_) * desat
+    k = lift * np.clip(lum / 255 * 1.6, 0, 1)
+    rgb_ = rgb_ + (np.array([255, 251, 244], np.float32) - rgb_) * k
+    a[..., :3] = rgb_
+    return Image.fromarray(np.clip(a, 0, 255).astype(np.uint8), "RGBA")
 
 
 def add_grain(img, amount, seed):
