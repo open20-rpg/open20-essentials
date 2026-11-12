@@ -1,0 +1,5 @@
+# Exact versions: the pack must render identically on every machine and in CI.
+skia-python==144.1
+pillow==12.3.0
+numpy==2.5.3
+scipy==1.18.1
