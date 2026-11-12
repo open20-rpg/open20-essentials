@@ -274,20 +274,40 @@ def dead_tree(seed=33, size=640):
             bx, by = spine[j]
             grow(bx, by, ang + side * a.rng.uniform(0.6, 1.0), L * 0.5, widths[j] * 0.55, depth + 2)
 
-    count = a.rng.randint(4, 6)
+    # A hint of perspective: the trunk's foot shows at the bottom and the
+    # trunk rises to where the limbs open; limbs reaching away (up the image)
+    # look longer than those reaching toward us.
+    base = (m + a.rng.uniform(-4, 4), m + size * 0.075)
+    crown = (m, m - size * 0.01)
+    count = a.rng.randint(5, 6)
     rot = a.rng.uniform(0, 6.28)
     for i in range(count):
         ang = rot + 2 * math.pi * i / count + a.rng.uniform(-0.25, 0.25)
-        grow(m, m, ang, size * a.rng.uniform(0.15, 0.19), a.rng.uniform(36, 46), 0)
+        foreshorten = 1 - 0.12 * math.sin(ang)
+        grow(crown[0], crown[1], ang, size * a.rng.uniform(0.13, 0.16) * foreshorten, a.rng.uniform(34, 42), 0)
     for spine, w in twigs:
         a.ink(spine, w + 0.6, color=shade(bark, 0.65), alpha=0.95, taper=True, wob=0.2, var=0.1)
     # All limbs and the trunk as ONE shape: one outline, no seams at the forks.
     from pen import to_path
 
     body = skia.Path()
-    # The trunk lies under the limbs (seen from above): just their meeting point.
-    trunk = scallop(m, m, 30, a.rng, 9, 0.08)
-    for poly in [trunk] + [p for _, p, _ in limbs]:
+    # The trunk: wide at its foot (with a few roots), narrowing as it rises.
+    tw0, tw1 = 62, 44
+    steps = 10
+    spine_t = [(base[0] + (crown[0] - base[0]) * t + 6 * math.sin(t * 3), base[1] + (crown[1] - base[1]) * t) for t in [k / steps for k in range(steps + 1)]]
+    ns_t = normals(spine_t, False)
+    lt = [(x + nx * (tw0 + (tw1 - tw0) * k / steps) / 2, y + ny * (tw0 + (tw1 - tw0) * k / steps) / 2) for k, ((x, y), (nx, ny)) in enumerate(zip(spine_t, ns_t))]
+    rt = [(x - nx * (tw0 + (tw1 - tw0) * k / steps) / 2, y - ny * (tw0 + (tw1 - tw0) * k / steps) / 2) for k, ((x, y), (nx, ny)) in enumerate(zip(spine_t, ns_t))]
+    trunk = lt + rt[::-1]
+    # Root flare: low, rounded bulges around the trunk's foot.
+    flare = []
+    for i in range(80):
+        t = 2 * math.pi * i / 80
+        r = 40 * (1 + 0.18 * abs(math.sin(3 * t + 0.5)))
+        flare.append((base[0] + r * math.cos(t), base[1] + r * 0.55 * math.sin(t)))
+    limbs.append((40, flare, []))
+    crown_knot = scallop(crown[0], crown[1], 24, a.rng, 9, 0.08)
+    for poly in [trunk, crown_knot] + [p for _, p, _ in limbs]:
         q = to_path(poly)
         body = skia.Op(body, q, skia.kUnion_PathOp) if not body.isEmpty() else q
     a.fill_path(body, bark)
@@ -298,8 +318,19 @@ def dead_tree(seed=33, size=640):
         a.stroke_path(body, shade(bark, 0.4), 6, 0.35, blur=3)
         # Bark: short pen strokes along each limb, either side of its middle,
         # uneven lengths with gaps (the same idea as the leaf lines).
+        for f in (-0.3, 0.0, 0.3):
+            j = a.rng.randint(0, 2)
+            while j < steps - 1:
+                run = a.rng.randint(2, 3)
+                seg = []
+                for k in range(j, min(steps + 1, j + run + 1)):
+                    w = tw0 + (tw1 - tw0) * k / steps
+                    (px, py), (nx, ny) = spine_t[k], ns_t[k]
+                    seg.append((px + nx * w * f, py + ny * w * f))
+                a.ink(seg, FINE * 0.9, color=shade(bark, 0.6), alpha=0.65, wob=0.4)
+                j += run + a.rng.randint(1, 2)
         for w0, poly, spine in limbs:
-            if w0 < 8:
+            if w0 < 8 or len(spine) < 4:
                 continue
             ns = normals(spine, False)
             n = len(spine)
