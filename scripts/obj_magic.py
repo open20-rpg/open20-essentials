@@ -348,11 +348,7 @@ def roll(a, x, y, L, half_w, ang, color=PARCH, spiral_at=1, tie=None):
     poly = left + right[::-1]
     soft_shadow(a, poly, dx=3, dy=4)
 
-    def lines(art, p):
-        for k in (-0.45, 0.4):
-            art.ink([(sx + px * w * k, sy + py * w * k) for (sx, sy), w in zip(spine[1:-1], ws[1:-1])], FINE * 0.9, color=shade(color, 0.4), alpha=0.6, wob=0.2)
-
-    a.shape(poly, color, outline=DETAIL * 1.2, corner=0, wob=0.2, depth=3, light_k=0.4, mottle=0.03, detail=lines)
+    a.shape(poly, color, outline=DETAIL * 1.2, corner=0, wob=0.2, depth=3, light_k=0.4, mottle=0.03)
     ex, ey = spine[-1] if spiral_at > 0 else spine[0]
     spiral_end(a, ex, ey, ws[-1] * 0.42, ws[-1], ang, color)
     if tie:
