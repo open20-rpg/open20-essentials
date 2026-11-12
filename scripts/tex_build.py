@@ -795,6 +795,50 @@ CAVES = {
 # -- roofs -------------------------------------------------------------------------------------------
 
 
+def lap_tile(kind, x, top, y0, w, h, rng, g=1.0):
+    """Outline of one overlapping roof tile: straight top at `top` (hidden
+    under the row above) and the kind's exposed lower edge in row y0..y0+h."""
+    if kind == "shingle":
+        return [(x + g, top), (x + w - g, top), (x + w - g, y0 + h * 0.85), (x + w / 2, y0 + h), (x + g, y0 + h * 0.85)]
+    if kind == "slate":
+        return rect(x + g, top, x + w - g, y0 + h)
+    if kind == "clay":
+        return [(x + g, top), (x + w - g, top)] + [(x + w / 2 + (w / 2 - g) * math.cos(t), y0 + h * 0.62 + h * 0.38 * math.sin(t)) for t in [math.pi * k / 8 for k in range(9)]]
+    if kind == "scale":
+        return [(x + 0.5, top), (x + w - 0.5, top)] + [(x + w / 2 + (w / 2 - 0.5) * math.cos(t), y0 + h * 0.5 + h * 0.5 * math.sin(t)) for t in [math.pi * k / 10 for k in range(11)]]
+    if kind == "stone":
+        return [(px + rng.uniform(-1.5, 1.5), py) for px, py in rect(x + 1.5, top, x + w - 1.5, y0 + h)]
+    return [(x + g, top), (x + w - g, top + rng.uniform(-2, 2)), (x + w - 3, y0 + h * 0.9), (x + w * 0.55, y0 + h), (x + 3, y0 + h * 0.92)]
+
+
+def lapped(a, rows_specs, h, shadow=0.35, off=0.0):
+    """Roof tiles that overlap like real ones: each row's tiles reach up under
+    the row above (their tops are hidden) and the row above casts a soft
+    shadow on them. `rows_specs[r]` is a list of (pts, color, shape kwargs);
+    rows are drawn bottom-up so upper rows sit on top. The top row overlaps
+    the bottom one across the tile seam, so the bottom row is drawn again
+    at the end clipped to its own band to close the cycle."""
+    s = a.h
+
+    def draw_row(specs):
+        for pts, c, kw in specs:
+            sh = to_path([(x, y + h * 0.16) for x, y in pts])
+            a.fill_path(sh, shade(c, 0.6), shadow, blur=h * 0.1)
+            a.shape(pts, c, **kw)
+
+    for specs in reversed(rows_specs):
+        draw_row(specs)
+    tile = a.tile
+    a.tile = False
+    # The last row's own band (rows start `off` below each multiple of h).
+    band = to_path(rect(-60, s - h + off, a.w + 60, s + 1))
+    if off > 0:
+        band.addPath(to_path(rect(-60, -1, a.w + 60, off)))
+    a.tile = tile
+    with a.clip(band):
+        draw_row(rows_specs[-1])
+
+
 def roof_tiles(seed, base, kind="shingle", rows=10, gap=None):
     s = SW
     a = Art(s, s, seed, tile=True, bg=grout(base) if gap is None else gap)
@@ -817,36 +861,29 @@ def roof_tiles(seed, base, kind="shingle", rows=10, gap=None):
             a.ink([(x, -10), (x, s + 10)], DETAIL * 1.2, color=shade(base, 0.45), taper=False, wob=0.2)
             a.ink([(x + 4, -10), (x + 4, s + 10)], FINE, color=tint(base, 0.4), taper=False, wob=0.2)
         return a.image()
+    ext = 0.55  # how far each tile runs up under the row above (in rows)
+    rows_specs = []
     for r in range(rows):
         w = {"shingle": h * 1.2, "slate": h * 1.6, "clay": h * 0.9, "scale": h * 1.0, "stone": h * 2.2, "bark": h * 1.4}[kind]
         n = max(1, round(s / w))
         w = s / n  # a whole number of tiles per row, so the row wraps cleanly
         x = 0 if r % 2 == 0 else -w / 2
+        specs = []
         for _ in range(n):
             c = vary(a.rng, mix(base, tint(base, 0.2) if a.rng.random() < 0.5 else shade(base, 0.12), a.rng.uniform(0.2, 0.8)), 0.03)
             y0 = r * h
-            if kind == "shingle":
-                pts = [(x + 2, y0), (x + w - 2, y0), (x + w - 2, y0 + h * 0.85), (x + w / 2, y0 + h - 1), (x + 2, y0 + h * 0.85)]
-            elif kind == "slate":
-                pts = rect(x + 2, y0, x + w - 2, y0 + h - 1)
-            elif kind == "clay":
-                pts = [(x + 2, y0)] + [(x + w / 2 + (w / 2 - 2) * math.cos(t), y0 + h * 0.7 + h * 0.3 * math.sin(t)) for t in [math.pi * k / 8 for k in range(9)]][::-1] + [(x + w - 2, y0)]
-                pts = [(x + 2, y0), (x + w - 2, y0)] + [(x + w / 2 + (w / 2 - 2) * math.cos(t), y0 + h * 0.65 + h * 0.34 * math.sin(t)) for t in [math.pi * k / 8 for k in range(9)]]
-            elif kind == "scale":
-                pts = [(x + 1, y0)] + [(x + w - 1, y0)] + [(x + w / 2 + (w / 2 - 1) * math.cos(t), y0 + h * 0.5 + h * 0.5 * math.sin(t)) for t in [math.pi * k / 10 for k in range(11)]]
-            elif kind == "stone":
-                pts = [(px + a.rng.uniform(-2, 2), py) for px, py in rect(x + 3, y0 + 1, x + w - 3, y0 + h - 1)]
-            else:  # bark
-                pts = [(x + 2, y0), (x + w - 2, y0 + a.rng.uniform(-2, 2)), (x + w - 4, y0 + h * 0.9), (x + w * 0.55, y0 + h), (x + 4, y0 + h * 0.92)]
+            pts = lap_tile(kind, x, y0 - ext * h, y0, w, h, a.rng)
             det = None
             if kind == "clay":
                 det = lambda art, p, x=x, y0=y0, w=w, c=c: art.ink([(x + w * 0.3, y0 + 4), (x + w * 0.3, y0 + h * 0.8)], FINE * 1.3, color=tint(c, 0.35), alpha=0.8, taper=False)
             elif kind in ("bark", "stone"):
                 det = lambda art, p, c=c: speckles(art, p, shade(c, 0.45), 4)
-            # Overlapping tiles keep a slightly heavier lower edge; flat ones just a joint.
             jw = JOINT * (1.7 if kind in ("shingle", "clay", "scale", "bark") else 1.2)
-            a.shape(pts, c, outline=jw, outline_color=joint_color(c), outline_alpha=0.85, corner=2 if kind != "stone" else 5, wob=0.4, depth=3, shade_k=0.45, light_k=0.3, ao=0.1, mottle=0.03, detail=det, var=0.1)
+            specs.append((pts, c, dict(outline=jw, outline_color=joint_color(c), outline_alpha=0.85, corner=2 if kind != "stone" else 5, wob=0.4, depth=3, shade_k=0.45, light_k=0.3, ao=0.1, mottle=0.03, detail=det, var=0.1)))
             x += w
+        rows_specs.append(specs)
+    # Flat pieces only read as overlapping through the shadow under each course.
+    lapped(a, rows_specs, h, shadow=0.6 if kind in ("slate", "stone") else 0.35)
     return a.image()
 
 

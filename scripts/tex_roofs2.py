@@ -11,7 +11,7 @@ from PIL import Image
 
 from floors import speckles
 from pen import DETAIL, FINE, INK, JOINT, JOINT_ALPHA, Art, blob, chaikin, grout, joint_color, mix, rect, rgb, shade, tint, vary
-from tex_build import SW, band, roof_line, roof_tiles, strip
+from tex_build import SW, band, lap_tile, lapped, roof_line, roof_tiles, strip
 
 S = SW  # tile size
 
@@ -58,37 +58,44 @@ def hex_tiles(seed, base, n=8):
 
 
 def barrel_tiles(seed, base, cols=8):
-    """Spanish barrel tiles: alternating convex caps (lit) and pans (shaded) in columns."""
+    """Spanish barrel tiles: columns of concave pans (shaded) with convex caps
+    (lit) over the gaps; each course laps over the one below."""
     a = Art(S, S, seed, tile=True, bg=grout(base))
     w = S / cols
     rows = 6
     h = S / rows
-    for i in range(cols):
-        x = i * w
-        cap = i % 2 == 0
+    for cap in (False, True):
+        rows_specs = []
         for r in range(rows):
-            y = r * h + (h / 2 if cap else 0)
-            c = vary(a.rng, tint(base, 0.12) if cap else shade(base, 0.12), 0.04)
-            pts = rect(x + 0.8, y, x + w - 0.8, y + h + 2)
+            specs = []
+            for i in range(cap, cols, 2):
+                x = i * w
+                y = r * h + (h / 2 if cap else 0)
+                c = vary(a.rng, tint(base, 0.12) if cap else shade(base, 0.12), 0.04)
+                pts = rect(x + 0.8 - (2 if cap else -2), y - h * 0.35, x + w - 0.8 + (2 if cap else -2), y + h)
 
-            def det(art, p, x=x, y=y, c=c, cap=cap):
-                if cap:
-                    art.ink([(x + w * 0.35, y + 4), (x + w * 0.35, y + h - 4)], FINE * 1.4, color=tint(c, 0.45), alpha=0.85, taper=False)
-                else:
-                    art.ink([(x + w * 0.5, y + 4), (x + w * 0.5, y + h - 4)], FINE * 1.2, color=shade(c, 0.35), alpha=0.6, taper=False)
+                def det(art, p, x=x, y=y, c=c, cap=cap):
+                    if cap:
+                        art.ink([(x + w * 0.35, y + 4), (x + w * 0.35, y + h - 4)], FINE * 1.4, color=tint(c, 0.45), alpha=0.85, taper=False)
+                    else:
+                        art.ink([(x + w * 0.5, y + 4), (x + w * 0.5, y + h - 4)], FINE * 1.2, color=shade(c, 0.35), alpha=0.6, taper=False)
 
-            a.shape(pts, c, corner=w * 0.4, wob=0.3, depth=3, shade_k=0.45, light_k=0.35, ao=0.08, mottle=0.03, detail=det, var=0.1, **_joint(c, lap=True))
+                specs.append((pts, c, dict(corner=w * 0.4, wob=0.3, depth=3, shade_k=0.45, light_k=0.35, ao=0.08, mottle=0.03, detail=det, var=0.1, **_joint(c, lap=True))))
+            rows_specs.append(specs)
+        lapped(a, rows_specs, h, shadow=0.3, off=h / 2 if cap else 0)
     return a.image()
 
 
 def flat_tiles(seed, base, rows=12):
-    """Flat interlocking tiles: rectangles in staggered rows with a nib line."""
+    """Flat interlocking tiles: staggered rows, each lapping over the next."""
     a = Art(S, S, seed, tile=True, bg=grout(base))
     h = S / rows
     n = 8
     w = S / n
+    rows_specs = []
     for r in range(rows):
         x = 0 if r % 2 == 0 else -w / 2
+        specs = []
         for _ in range(n):
             c = vary(a.rng, mix(base, tint(base, 0.18), a.rng.random()), 0.03)
             y0 = r * h
@@ -96,8 +103,10 @@ def flat_tiles(seed, base, rows=12):
             def det(art, p, x=x, y0=y0, c=c):
                 art.ink([(x + 6, y0 + h * 0.3), (x + w - 6, y0 + h * 0.3)], FINE, color=shade(c, 0.35), alpha=0.6, taper=False)
 
-            a.shape(rect(x + 0.9, y0 + 0.9, x + w - 0.9, y0 + h - 0.9), c, corner=2, wob=0.3, depth=2.5, shade_k=0.4, light_k=0.3, ao=0.08, mottle=0.03, detail=det, var=0.1, **_joint(c))
+            specs.append((rect(x + 0.9, y0 - h * 0.4, x + w - 0.9, y0 + h), c, dict(corner=2, wob=0.3, depth=2.5, shade_k=0.4, light_k=0.3, ao=0.08, mottle=0.03, detail=det, var=0.1, **_joint(c, True))))
             x += w
+        rows_specs.append(specs)
+    lapped(a, rows_specs, h, shadow=0.6)
     return a.image()
 
 
@@ -225,19 +234,27 @@ def seam_metal(seed, base, n=8, rust=0.0):
 
 
 def oriental_tiles(seed, base, cols=10):
-    """East-Asian style: rows of round-ended barrel tiles with dark end caps."""
+    """East-Asian style: courses of round-ended barrel tiles with dark end
+    caps, each course lapping over the one below."""
     a = Art(S, S, seed, tile=True, bg=grout(base))
     w = S / cols
     rows = 8
     h = S / rows
+    rows_specs = []
     for r in range(rows):
+        specs = []
         for i in range(cols):
             x = i * w
             y = r * h
             c = vary(a.rng, tint(base, 0.08), 0.03)
-            a.shape(rect(x + 1.5, y, x + w - 1.5, y + h + 1), c, corner=w * 0.45, wob=0.2, depth=3, shade_k=0.45, light_k=0.35, ao=0.08, mottle=0.03, var=0.1, **_joint(c, lap=True))
             cap = shade(base, 0.25)
-            a.shape(rect(x + 5, y + h - 9, x + w - 5, y + h - 1), cap, corner=4, wob=0.1, depth=1, shade_k=0, light_k=0, ao=0, mottle=0, **_joint(cap))
+
+            def det(art, p, x=x, y=y, cap=cap):
+                art.shape(rect(x + 5, y + h - 9, x + w - 5, y + h - 1), cap, corner=4, wob=0.1, depth=1, shade_k=0, light_k=0, ao=0, mottle=0, **_joint(cap))
+
+            specs.append((rect(x + 1.5, y - h * 0.5, x + w - 1.5, y + h), c, dict(corner=w * 0.45, wob=0.2, depth=3, shade_k=0.45, light_k=0.35, ao=0.08, mottle=0.03, detail=det, var=0.1, **_joint(c, lap=True))))
+        rows_specs.append(specs)
+    lapped(a, rows_specs, h)
     return a.image()
 
 
@@ -321,42 +338,36 @@ def roof2(seed, base, tiles, line_kind="cap", post=None, line_post=None):
 
 
 def classic_tiles(seed, base, kind="shingle", rows=10):
-    """tex_build.roof_tiles' piece kinds with thin tone-on-tone joints over a
-    grout close to the tile colour (thatch keeps tex_build's drawing)."""
+    """tex_build.roof_tiles' piece kinds, overlapping row over row, with thin
+    tone-on-tone joints (thatch keeps tex_build's drawing)."""
     if kind not in ("shingle", "slate", "clay", "scale", "stone", "bark"):
         return roof_tiles(seed, base, kind, rows)
     s = SW
     a = Art(s, s, seed, tile=True, bg=grout(base))
     h = s / rows
     lap = kind in ("shingle", "clay", "scale", "bark")
-    g = 1.0
+    ext = 0.55
+    rows_specs = []
     for r in range(rows):
         w = {"shingle": h * 1.2, "slate": h * 1.6, "clay": h * 0.9, "scale": h * 1.0, "stone": h * 2.2, "bark": h * 1.4}[kind]
         n = max(1, round(s / w))
         w = s / n  # a whole number of tiles per row, so the row wraps cleanly
         x = 0 if r % 2 == 0 else -w / 2
+        specs = []
         for _ in range(n):
             c = vary(a.rng, mix(base, tint(base, 0.2) if a.rng.random() < 0.5 else shade(base, 0.12), a.rng.uniform(0.2, 0.8)), 0.03)
             y0 = r * h
-            if kind == "shingle":
-                pts = [(x + g, y0), (x + w - g, y0), (x + w - g, y0 + h * 0.85), (x + w / 2, y0 + h - 0.5), (x + g, y0 + h * 0.85)]
-            elif kind == "slate":
-                pts = rect(x + g, y0, x + w - g, y0 + h - g)
-            elif kind == "clay":
-                pts = [(x + g, y0), (x + w - g, y0)] + [(x + w / 2 + (w / 2 - g) * math.cos(t), y0 + h * 0.65 + h * 0.34 * math.sin(t)) for t in [math.pi * k / 8 for k in range(9)]]
-            elif kind == "scale":
-                pts = [(x + 0.5, y0), (x + w - 0.5, y0)] + [(x + w / 2 + (w / 2 - 0.5) * math.cos(t), y0 + h * 0.5 + h * 0.5 * math.sin(t)) for t in [math.pi * k / 10 for k in range(11)]]
-            elif kind == "stone":
-                pts = [(px + a.rng.uniform(-1.5, 1.5), py) for px, py in rect(x + 1.5, y0 + 1, x + w - 1.5, y0 + h - 1)]
-            else:  # bark
-                pts = [(x + g, y0), (x + w - g, y0 + a.rng.uniform(-2, 2)), (x + w - 3, y0 + h * 0.9), (x + w * 0.55, y0 + h), (x + 3, y0 + h * 0.92)]
+            pts = lap_tile(kind, x, y0 - ext * h, y0, w, h, a.rng)
             det = None
             if kind == "clay":
                 det = lambda art, p, x=x, y0=y0, w=w, c=c: art.ink([(x + w * 0.3, y0 + 4), (x + w * 0.3, y0 + h * 0.8)], FINE * 1.3, color=tint(c, 0.35), alpha=0.8, taper=False)
             elif kind in ("bark", "stone"):
                 det = lambda art, p, c=c: speckles(art, p, shade(c, 0.45), 4)
-            a.shape(pts, c, corner=2 if kind != "stone" else 4, wob=0.4, depth=3, shade_k=0.4, light_k=0.3, ao=0.08, mottle=0.03, detail=det, var=0.1, **_joint(c, lap))
+            specs.append((pts, c, dict(corner=2 if kind != "stone" else 4, wob=0.4, depth=3, shade_k=0.4, light_k=0.3, ao=0.08, mottle=0.03, detail=det, var=0.1, **_joint(c, lap))))
             x += w
+        rows_specs.append(specs)
+    # Flat pieces only read as overlapping through the shadow under each course.
+    lapped(a, rows_specs, h, shadow=0.6 if kind in ("slate", "stone") else 0.35)
     return a.image()
 
 
