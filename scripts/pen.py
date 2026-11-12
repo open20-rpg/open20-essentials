@@ -358,6 +358,7 @@ class Art:
         mottle=0.06,
         smooth=False,
         detail=None,
+        var=0.14,
     ):
         """A filled, shaded, ink-outlined shape. `detail(art, path)` draws inside
         it (clipped) before the outline goes on top. Returns the shape's path."""
@@ -387,7 +388,7 @@ class Art:
             if ao > 0:
                 self.stroke_path(path, shade(color, 0.4), d * 1.6, ao, blur=d * 0.9)
         if outline:
-            self.ink(q, outline, closed=True, wob=0.0, var=0.14)
+            self.ink(q, outline, closed=True, wob=0.0, var=var)
         return path
 
     def mottle(self, bounds, color, strength):
