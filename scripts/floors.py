@@ -5,7 +5,7 @@ import math
 import numpy as np
 import skia
 
-from pen import DETAIL, FINE, INK, Art, chaikin, ellipse, mix, rect, rgb, round_corners, shade, tint, to_path, vary, wobble
+from pen import DETAIL, FINE, INK, JOINT, JOINT_ALPHA, Art, grout, joint_color, chaikin, ellipse, mix, rect, rgb, round_corners, shade, tint, to_path, vary, wobble
 
 T = 256
 
@@ -113,9 +113,8 @@ def split(total, rng, lo, hi):
 
 def wood_planks(seed=1):
     s = 2 * T
-    gap = rgb("#3b271b")
-    a = Art(s, s, seed, tile=True, bg=gap)
     tones = [rgb("#b07d4f"), rgb("#a5724a"), rgb("#ba8a5a"), rgb("#9c6a42")]
+    a = Art(s, s, seed, tile=True, bg=grout(tones[1]))
     rows = 8
     h = s / rows
     for r in range(rows):
@@ -138,24 +137,23 @@ def wood_planks(seed=1):
                     art.ink(ellipse(kx, ky, 7, 3.5, 24), FINE, closed=True, color=shade(c, 0.5), alpha=0.8, wob=0.2)
                     art.ink(ellipse(kx, ky, 15, 7, 32), FINE * 0.8, closed=True, color=shade(c, 0.45), alpha=0.5, wob=0.3)
 
-            a.shape(rect(x + 1.6, y + 1.6, x + ln - 1.6, y + h - 1.6), c, outline=2.6, corner=2.5, wob=0.5, depth=4, shade_k=0.45, light_k=0.3, ao=0.2, mottle=0.05, detail=grain)
+            a.shape(rect(x + 0.8, y + 0.8, x + ln - 0.8, y + h - 0.8), c, outline=JOINT, outline_color=joint_color(c), outline_alpha=JOINT_ALPHA, corner=1.5, wob=0.4, depth=3, shade_k=0.35, light_k=0.25, ao=0.12, mottle=0.05, detail=grain)
             # Nails at both ends.
             for nx in (x + 9, x + ln - 9):
                 for ny in (y + h * 0.3, y + h * 0.7):
                     dot = skia.Path()
                     dot.addCircle(nx, ny, 2.2)
-                    a.fill_path(dot, INK, 0.85)
+                    a.fill_path(dot, shade(c, 0.6), 0.7)
             x += ln
     return a.image()
 
 
 def flagstones(seed=2):
     s = 2 * T
-    mortar = rgb("#6f685f")
-    a = Art(s, s, seed, tile=True, bg=mortar)
     base = rgb("#a9a296")
+    a = Art(s, s, seed, tile=True, bg=grout(base))
     for (cx, cy), poly in voronoi_cells(s, s, 5, 5, a.rng, 0.3):
-        p = inset(poly, 4.5)
+        p = inset(poly, 2.0)
         c = vary(a.rng, mix(base, rgb("#b8ae9c") if a.rng.random() < 0.5 else rgb("#968f86"), a.rng.uniform(0.2, 0.7)), 0.03)
 
         def detail(art, path, cx=cx, cy=cy, c=c):
@@ -163,25 +161,25 @@ def flagstones(seed=2):
             if art.rng.random() < 0.45:
                 crack(art, cx + art.rng.uniform(-20, 20), cy + art.rng.uniform(-20, 20), art.rng.uniform(0, 6.28), art.rng.uniform(30, 55))
 
-        a.shape(p, c, outline=3.6, corner=10, wob=1.0, depth=7, shade_k=0.55, light_k=0.4, ao=0.3, detail=detail)
+        a.shape(p, c, outline=JOINT * 1.2, outline_color=joint_color(c), outline_alpha=JOINT_ALPHA, corner=8, wob=0.8, depth=5, shade_k=0.45, light_k=0.3, ao=0.18, detail=detail)
     return a.image()
 
 
-def tiles(seed=3, color="#bf6b45", grout="#dccdb0", n=8):
+def tiles(seed=3, color="#bf6b45", grout_c="#dccdb0", n=8):
     s = 2 * T
-    a = Art(s, s, seed, tile=True, bg=rgb(grout))
+    a = Art(s, s, seed, tile=True, bg=mix(rgb(grout_c), rgb(color), 0.25))
     cell = s / n
     for i in range(n):
         for j in range(n):
             x0, y0 = i * cell, j * cell
             c = vary(a.rng, rgb(color), 0.05)
-            a.shape(rect(x0 + 3.5, y0 + 3.5, x0 + cell - 3.5, y0 + cell - 3.5), c, outline=2.8, corner=5, wob=0.5, depth=5, shade_k=0.5, light_k=0.4, ao=0.25)
+            a.shape(rect(x0 + 2, y0 + 2, x0 + cell - 2, y0 + cell - 2), c, outline=JOINT, outline_color=joint_color(c), outline_alpha=JOINT_ALPHA, corner=3, wob=0.4, depth=4, shade_k=0.4, light_k=0.3, ao=0.15)
     return a.image()
 
 
 def dungeon_stone(seed=4):
     s = 2 * T
-    a = Art(s, s, seed, tile=True, bg=rgb("#4c4842"))
+    a = Art(s, s, seed, tile=True, bg=grout(rgb("#827d75")))
     rows = 6
     h = s / rows
     for r in range(rows):
@@ -194,7 +192,7 @@ def dungeon_stone(seed=4):
                 if art.rng.random() < 0.3:
                     crack(art, x + w * art.rng.uniform(0.2, 0.8), r * h + h * 0.5, art.rng.uniform(0, 6.28), 30)
 
-            a.shape(rect(x + 3, r * h + 3, x + w - 3, r * h + h - 3), c, outline=3.6, corner=8, wob=1.2, depth=7, shade_k=0.6, light_k=0.35, ao=0.3, detail=detail)
+            a.shape(rect(x + 1.5, r * h + 1.5, x + w - 1.5, r * h + h - 1.5), c, outline=JOINT * 1.2, outline_color=joint_color(c), outline_alpha=JOINT_ALPHA, corner=5, wob=0.9, depth=5, shade_k=0.45, light_k=0.3, ao=0.18, detail=detail)
             x += w
     return a.image()
 

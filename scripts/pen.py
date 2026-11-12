@@ -26,6 +26,11 @@ INK = (38, 30, 26)
 OUTLINE = 7.0  # silhouette
 DETAIL = 3.2  # inner lines (plank seams, rims)
 FINE = 2.0  # grain, cracks, texture marks
+# Joints between bricks, tiles, planks and cobbles: thin and in a darker tone
+# of the piece itself (never INK), so a surface reads as one wall or floor
+# and not as a pile of loose, individually inked pieces.
+JOINT = 1.5
+JOINT_ALPHA = 0.75
 
 
 # -- color ---------------------------------------------------------------------------------
@@ -359,6 +364,8 @@ class Art:
         smooth=False,
         detail=None,
         var=0.14,
+        outline_color=None,
+        outline_alpha=1.0,
     ):
         """A filled, shaded, ink-outlined shape. `detail(art, path)` draws inside
         it (clipped) before the outline goes on top. Returns the shape's path."""
@@ -388,7 +395,7 @@ class Art:
             if ao > 0:
                 self.stroke_path(path, shade(color, 0.4), d * 1.6, ao, blur=d * 0.9)
         if outline:
-            self.ink(q, outline, closed=True, wob=0.0, var=var)
+            self.ink(q, outline, closed=True, color=outline_color or INK, alpha=outline_alpha, wob=0.0, var=var)
         return path
 
     def mottle(self, bounds, color, strength):
@@ -468,3 +475,14 @@ def add_grain(img, amount, seed):
     n = (n * 2 + np.roll(n, 1, 0) + np.roll(n, -1, 0) + np.roll(n, 1, 1) + np.roll(n, -1, 1)) / 4.5
     a[..., :3] *= 1 + n[..., None] * amount
     return Image.fromarray(np.clip(a, 0, 255).astype(np.uint8), "RGBA")
+
+
+def joint_color(c):
+    """Line colour for the joints of a masonry/plank surface made of `c`."""
+    return shade(c, 0.5)
+
+
+def grout(c, mortar=None, t=0.35):
+    """Background between pieces: close to the pieces' own tone (a light
+    mortar pulls it lighter), so gaps read as joints, not dark trenches."""
+    return mix(shade(c, 0.22), mortar, t) if mortar else shade(c, 0.28)

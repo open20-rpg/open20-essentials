@@ -75,7 +75,9 @@ def main(out):
 
     os.makedirs(out, exist_ok=True)
     secs = list(catalog.sections())
-    jobs = [(si, idx, kind) for si, (title, kind, rows) in enumerate(secs) for idx in range(len(rows))]
+    # REVIEW_IDS=OB010,S003,... renders only those assets (a re-review batch).
+    only = {i for i in os.environ.get("REVIEW_IDS", "").split(",") if i}
+    jobs = [(si, idx, kind) for si, (title, kind, rows) in enumerate(secs) for idx in range(len(rows)) if not only or rows[idx][0] in only]
     results = {}
     failures = []
     with Pool(max(1, os.cpu_count() or 1)) as pool:
@@ -109,7 +111,8 @@ def main(out):
             atlas.paste(th, (cx + (CELL - th.width) // 2, cy + (CELL - th.height) // 2), th)
             sec["items"].append({"id": iid, "name": name, "atlas": atlas_n, "x": cx, "y": cy, "colorable": colorable, "w": ow, "h": oh})
             slot += 1
-        index.append(sec)
+        if sec["items"]:
+            index.append(sec)
     flush()
     with open(os.path.join(out, "assets.json"), "w") as f:
         json.dump({"cell": CELL, "cols": COLS, "atlases": atlas_n + 1, "sections": index}, f, ensure_ascii=False)
