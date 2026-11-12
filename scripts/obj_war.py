@@ -129,70 +129,81 @@ def weapon(fn, w, h, ang, x, y, **kw):
     return make
 
 
+def trapezoid(img, height=0.25, bottom=0.75):
+    """Seen from above at an angle: the whole image squashed to `height` of
+    its height and narrowed toward the bottom (to `bottom` of the width) by
+    a smooth perspective warp, so the contents deform evenly as a trapezoid."""
+    import numpy as np
+    from PIL import Image
+
+    w, h = img.size
+    h2 = max(1, int(round(h * height)))
+    wb = w * bottom
+    # Output corners (trapezoid) -> input corners (the full image).
+    dst = [(0, 0), (w, 0), ((w + wb) / 2, h2), ((w - wb) / 2, h2)]
+    src = [(0, 0), (w, 0), (w, h), (0, h)]
+    rows = []
+    for (x, y), (u, v) in zip(dst, src):
+        rows.append([x, y, 1, 0, 0, 0, -u * x, -u * y])
+        rows.append([0, 0, 0, x, y, 1, -v * x, -v * y])
+    coeffs = np.linalg.solve(np.array(rows, float), np.array([c for p in src for c in p], float))
+    big = img.resize((w * 2, h * 2), Image.LANCZOS)
+    k = [coeffs[0], coeffs[1], coeffs[2] * 2, coeffs[3], coeffs[4], coeffs[5] * 2, coeffs[6] / 2, coeffs[7] / 2]
+    k = [coeffs[0], coeffs[1] , coeffs[2] * 2, coeffs[3], coeffs[4], coeffs[5] * 2, coeffs[6] / 2, coeffs[7] / 2]
+    out = big.transform((w * 2, h2 * 2), Image.PERSPECTIVE, list(k), Image.BICUBIC)
+    return out.resize((w, h2), Image.LANCZOS)
+
+
 # -- shields (red = colorable) --------------------------------------------------------------------
 
 
 def round_shield(seed=901):
     s = 220
-    a = Art(s, int(s * 0.8), seed)
+    a = Art(s, s, seed)
     m = s / 2
-    my = s * 0.4
-    persp = lambda ps: [(m + (x - m) * (1 - 0.22 * (y - (my - 94 * k)) / (2 * 94 * k)), y) for x, y in ps]  # noqa: E731
-    k = 0.82  # squashed: seen from above at an angle
-    soft_shadow(a, persp(ellipse(m, my, 94, 94 * k, 80)), dx=5, dy=6)
+    soft_shadow(a, (m, m), 94, 5, 6)
 
     def planks(art, p):
-        for j in range(-3, 4):
-            art.ink([(m + j * 26, 10), (m + j * 26, s - 10)], DETAIL * 0.8, color=shade(RED, 0.4), alpha=0.8, taper=False)
+        for k in range(-3, 4):
+            art.ink([(m + k * 26, 10), (m + k * 26, s - 10)], DETAIL * 0.8, color=shade(RED, 0.4), alpha=0.8, taper=False)
 
-    a.shape(persp(ellipse(m, my, 94, 94 * k, 80)), RED, depth=10, light_k=0.4, detail=planks)
-    a.ink(persp(ellipse(m, my, 88, 88 * k, 80)), DETAIL * 2.6, closed=True, color=IRON)
-    a.shape(persp(ellipse(m, my, 28, 28 * k, 40)), IRON, outline=O, depth=4, light_k=0.6, mottle=0, var=V)
-    for j in range(8):
-        t = 2 * math.pi * j / 8
-        (px, py), = persp([(m + 80 * math.cos(t), my + 80 * k * math.sin(t))])
-        dot(a, px, py, 4, tint(IRON, 0.4))
+    a.shape(ellipse(m, m, 94, 94, 80), RED, depth=10, light_k=0.4, detail=planks)
+    a.ink(ellipse(m, m, 88, 88, 80), DETAIL * 2.6, closed=True, color=IRON)
+    a.shape(ellipse(m, m, 28, 28, 40), IRON, outline=O, depth=4, light_k=0.6, mottle=0, var=V)
+    for k in range(8):
+        t = 2 * math.pi * k / 8
+        dot(a, m + 80 * math.cos(t), m + 80 * math.sin(t), 4, tint(IRON, 0.4))
     return a.image()
 
 
 def kite_shield(seed=902):
     w, h = 200, 300
-    k = 0.82  # squashed: seen from above at an angle
-    h0 = h
-    h = int(h * k)
     a = Art(w, h, seed)
-    sq = lambda ps: [(w / 2 + (x - w / 2) * (1 - 0.3 * y / h0), y * k) for x, y in ps]  # noqa: E731
-    pts = chaikin([(20, 50), (w / 2, 14), (w - 20, 50), (w - 30, 150), (w / 2, h0 - 6), (30, 150)], True, 1)
-    pts = sq(pts)
+    pts = chaikin([(20, 50), (w / 2, 14), (w - 20, 50), (w - 30, 150), (w / 2, h - 14), (30, 150)], True, 2)
     soft_shadow(a, pts, dx=5, dy=6)
 
     def deco(art, p):
-        art.ink(sq([(w / 2, 30), (w / 2, h0 - 40)]), DETAIL * 2, color=rgb("#e2c068"))
-        art.ink(sq([(40, 90), (w - 40, 90)]), DETAIL * 2, color=rgb("#e2c068"))
+        art.ink([(w / 2, 30), (w / 2, h - 30)], DETAIL * 2, color=rgb("#e2c068"))
+        art.ink([(40, 90), (w - 40, 90)], DETAIL * 2, color=rgb("#e2c068"))
 
     a.shape(pts, RED, depth=10, light_k=0.4, detail=deco)
-    inner = [(w / 2 + (x - w / 2) * 0.9, 150 * k + (y - 150 * k) * 0.92) for x, y in pts]
+    inner = [(w / 2 + (x - w / 2) * 0.9, 150 + (y - 150) * 0.92) for x, y in pts]
     a.ink(inner, DETAIL, closed=True, color=shade(RED, 0.45))
     return a.image()
 
 
 def heater_shield(seed=903):
     w, h = 200, 240
-    k = 0.82  # squashed: seen from above at an angle
-    h0 = h
-    h = int(h * k)
     a = Art(w, h, seed)
-    sq = lambda ps: [(w / 2 + (x - w / 2) * (1 - 0.3 * y / h0), y * k) for x, y in ps]  # noqa: E731
-    pts = chaikin([(20, 20), (w - 20, 20), (w - 20, 110), (w / 2, h0 - 6), (20, 110)], True, 1)
-    pts = sq(pts)
+    pts = chaikin([(20, 20), (w - 20, 20), (w - 20, 110), (w / 2, h - 14), (20, 110)], True, 2)
     soft_shadow(a, pts, dx=5, dy=6)
 
     def deco(art, p):
         # A chevron charge.
-        art.shape(sq([(30, 140), (w / 2, 70), (w - 30, 140), (w - 30, 170), (w / 2, 100), (30, 170)]), rgb("#e2c068"), outline=DETAIL, corner=2, depth=2, mottle=0)
+        art.shape([(30, 140), (w / 2, 70), (w - 30, 140), (w - 30, 170), (w / 2, 100), (30, 170)], rgb("#e2c068"), outline=DETAIL, corner=2, depth=2, mottle=0)
 
     a.shape(pts, RED, depth=10, light_k=0.4, detail=deco)
-    a.ink([(w / 2 + (x - w / 2) * 0.9, 110 * k + (y - 110 * k) * 0.9) for x, y in pts], DETAIL, closed=True, color=shade(RED, 0.45))
+    a.ink([(w / 2 + (x - w / 2) * 0.9, 110 + (y - 110) * 0.9) for x, y in pts], DETAIL, closed=True, color=shade(RED, 0.45))
     return a.image()
 
 
@@ -419,9 +430,9 @@ WAR = {
     "Arrow": weapon(arrow_at, 220, 90, -0.12, 20, 60, L=170),
     "Arrows": lambda: _arrows(),
     "Quiver": lambda: _quiver(),
-    "Round Shield": round_shield,
-    "Kite Shield": kite_shield,
-    "Heater Shield": heater_shield,
+    "Round Shield": lambda: trapezoid(round_shield()),
+    "Kite Shield": lambda: trapezoid(kite_shield()),
+    "Heater Shield": lambda: trapezoid(heater_shield()),
     "Weapon Rack": weapon_rack,
     "Spear Stand": spear_stand,
     "Armor Stand": armor_stand,
