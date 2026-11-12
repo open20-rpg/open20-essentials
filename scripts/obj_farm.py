@@ -4,6 +4,8 @@ them. Red (g == b) parts are recolorable."""
 
 import math
 
+import numpy as np
+
 import skia
 
 from kit import BRASS, IRON, RED, STONE, WOOD, WOOD_DARK, WOOD_LIGHT, board, boards, dot, fruit, pile, scallop, soft_shadow
@@ -25,9 +27,556 @@ def mirror_x(pts, cx):
     return [(2 * cx - x, y) for x, y in reversed(pts)]
 
 
-# -- animals ---------------------------------------------------------------------------------------
+# -- four-legged animals -------------------------------------------------------------------------
+# Seen from straight above, nose toward the top. The whole animal (head, neck,
+# body) is ONE silhouette built around a slightly curved spine from a width
+# profile, so it reads as an animal and not as a body with parts stuck on.
+# Legs stay hidden under the body except for the tips of hooves/paws.
+
+# Body plans: full width as a fraction of length; (s along the spine from
+# nose 0 to rump 1, half-width as a fraction of the widest point); and where
+# the eyes, ears and horns sit along the spine.
+PLANS = {
+    "cow": (0.50, [(0, 0.20), (0.02, 0.30), (0.07, 0.27), (0.13, 0.34), (0.17, 0.42), (0.21, 0.45), (0.245, 0.40), (0.29, 0.46), (0.34, 0.62), (0.40, 0.86), (0.47, 0.83), (0.58, 0.97), (0.66, 1.0), (0.75, 0.91), (0.82, 1.0), (0.87, 0.95), (0.95, 0.72), (0.99, 0.40), (1, 0.12)], dict(eye=0.17, ear=0.21, horn=0.215)),
+    "horse": (0.32, [(0, 0.18), (0.02, 0.26), (0.07, 0.24), (0.12, 0.27), (0.19, 0.36), (0.21, 0.38), (0.25, 0.30), (0.28, 0.28), (0.34, 0.34), (0.40, 0.48), (0.47, 0.80), (0.50, 0.88), (0.60, 0.96), (0.70, 0.98), (0.78, 0.92), (0.86, 1.0), (0.92, 0.94), (0.98, 0.60), (1, 0.20)], dict(eye=0.19, ear=0.245, horn=0.24)),
+    "pig": (0.55, [(0, 0.30), (0.03, 0.36), (0.08, 0.42), (0.14, 0.56), (0.20, 0.72), (0.28, 0.86), (0.40, 0.96), (0.55, 1.0), (0.70, 0.98), (0.84, 0.92), (0.94, 0.74), (1, 0.36)], dict(eye=0.11, ear=0.15, horn=0.15)),
+    "goat": (0.38, [(0, 0.14), (0.03, 0.22), (0.10, 0.28), (0.16, 0.36), (0.19, 0.40), (0.24, 0.30), (0.30, 0.32), (0.38, 0.52), (0.44, 0.82), (0.55, 0.90), (0.66, 0.96), (0.76, 0.88), (0.84, 0.98), (0.93, 0.86), (0.98, 0.50), (1, 0.15)], dict(eye=0.165, ear=0.2, horn=0.195)),
+    "sheep": (0.42, [(0, 0.14), (0.04, 0.24), (0.12, 0.34), (0.18, 0.38), (0.26, 0.34), (0.32, 0.42), (0.45, 0.7), (1, 0.7)], dict(eye=0.15, ear=0.2, horn=0.2)),
+    "dog": (0.40, [(0, 0.10), (0.03, 0.18), (0.09, 0.24), (0.14, 0.40), (0.18, 0.44), (0.22, 0.40), (0.25, 0.30), (0.31, 0.36), (0.38, 0.62), (0.44, 0.90), (0.52, 0.88), (0.62, 0.76), (0.70, 0.70), (0.80, 0.84), (0.86, 0.88), (0.95, 0.66), (1, 0.25)], dict(eye=0.125, ear=0.185, horn=0.18)),
+    "hound": (0.36, [(0, 0.09), (0.04, 0.15), (0.11, 0.22), (0.16, 0.36), (0.20, 0.40), (0.23, 0.36), (0.27, 0.28), (0.33, 0.34), (0.40, 0.62), (0.46, 0.92), (0.54, 0.88), (0.64, 0.70), (0.72, 0.62), (0.81, 0.80), (0.87, 0.86), (0.95, 0.64), (1, 0.24)], dict(eye=0.15, ear=0.2, horn=0.2)),
+    "cat": (0.40, [(0, 0.18), (0.03, 0.40), (0.08, 0.56), (0.12, 0.60), (0.17, 0.48), (0.22, 0.34), (0.28, 0.44), (0.36, 0.78), (0.46, 0.82), (0.58, 0.80), (0.72, 0.92), (0.82, 0.96), (0.92, 0.78), (1, 0.34)], dict(eye=0.07, ear=0.12, horn=0.12)),
+}
 
 
+class Spine:
+    """A gently curved centreline from nose (s=0) to rump (s=1)."""
+
+    def __init__(self, cx, top, L, W, prof, bend=0.0, rng=None):
+        self.cx, self.top, self.L, self.W, self.bend = cx, top, L, W, bend
+        self.ss, self.ws = zip(*prof)
+        # Each side gets its own small irregularities, like a hand-traced line.
+        j = (lambda: rng.uniform(-0.05, 0.05)) if rng else (lambda: 0.0)
+        self.jl = [w * (1 + j()) for w in self.ws]
+        self.jr = [w * (1 + j()) for w in self.ws]
+
+    def xy(self, s):
+        # The head and neck turn to one side about the withers (a slight pose);
+        # the body sways a little the other way.
+        pivot = 0.42
+        x, y = self.cx - self.bend * self.L * 0.03 * math.sin(math.pi * s), self.top + s * self.L
+        if s < pivot:
+            t = (pivot - s) / pivot
+            ang = self.bend * 0.75 * (t * (2 - t))
+            px, py = self.cx, self.top + pivot * self.L
+            dx, dy = x - px, y - py
+            c, sn = math.cos(ang), math.sin(ang)
+            x, y = px + dx * c - dy * sn, py + dx * sn + dy * c
+        return (x, y)
+
+    def frame(self, s):
+        e = 1e-3
+        x0, y0 = self.xy(max(0, s - e))
+        x1, y1 = self.xy(min(1, s + e))
+        n = math.hypot(x1 - x0, y1 - y0) or 1
+        tx, ty = (x1 - x0) / n, (y1 - y0) / n
+        x, y = self.xy(s)
+        return x, y, tx, ty, -ty, tx  # point, tangent (toward the rump), normal (right)
+
+    def hw(self, s):
+        return float(np.interp(s, self.ss, self.ws)) * self.W / 2
+
+    def at(self, s, side=0.0, ahead=0.0):
+        """Spine point s, `side` half-widths to the right (negative: left),
+        `ahead` px toward the nose."""
+        x, y, tx, ty, nx, ny = self.frame(s)
+        h = self.hw(s) * side
+        return (x + nx * h - tx * ahead, y + ny * h - ty * ahead)
+
+    def side_pt(self, s, w, side):
+        x, y, tx, ty, nx, ny = self.frame(s)
+        h = w * self.W / 2 * side
+        return (x + nx * h, y + ny * h)
+
+    def outline(self, s0=0.0, s1=1.0):
+        """The silhouette through the landmarks (nose, cheeks, poll, neck,
+        shoulders, ribs, flank, hips, rump), each side traced on its own and
+        rounded with chaikin."""
+        keep = [i for i, s in enumerate(self.ss) if s0 <= s <= s1]
+        left = [self.side_pt(self.ss[i], self.jl[i], -1) for i in keep]
+        right = [self.side_pt(self.ss[i], self.jr[i], 1) for i in keep]
+        if s1 < 1:
+            left.append(self.side_pt(s1, float(np.interp(s1, self.ss, self.jl)), -1))
+            right.append(self.side_pt(s1, float(np.interp(s1, self.ss, self.jr)), 1))
+        return chaikin(left + right[::-1], True, 3)
+
+    def line(self, s0, s1, side=0.0, n=24):
+        return [self.at(s0 + (s1 - s0) * k / n, side) for k in range(n + 1)]
+
+
+def autocrop(img, pad=10):
+    box = img.getchannel("A").getbbox()
+    if not box:
+        return img
+    x0, y0, x1, y1 = box
+    return img.crop((max(0, x0 - pad), max(0, y0 - pad), min(img.width, x1 + pad), min(img.height, y1 + pad)))
+
+
+def fur(art, sp, color, n, s0=0.3, s1=0.95, L=10, alpha=0.35):
+    """Short hair strokes over the back, lying toward the rump and outward."""
+    for _ in range(n):
+        s = art.rng.uniform(s0, s1)
+        side = art.rng.choice((-1, 1)) * art.rng.uniform(0.3, 0.9)
+        _, _, tx, ty, nx, ny = sp.frame(s)
+        px, py = sp.at(s, side)
+        ox, oy = nx * side * 0.4, ny * side * 0.4
+        art.ink([(px, py), (px + (tx + ox) * L, py + (ty + oy) * L)], FINE * 0.9, color=color, alpha=alpha, wob=0.2)
+
+
+def legs(a, sp, color, hoof, s_front, s_back, length, width, paw=False):
+    """Only the tips of the legs peek out from under chest and hips, in
+    mid-stride (one front leg reaching forward, the other back)."""
+    gait = ((s_front - 0.035, -1), (s_front + 0.03, 1), (s_back + 0.03, -1), (s_back - 0.02, 1))
+    for s, side in gait:
+        x, y = sp.at(s, side * 0.9)
+        _, _, tx, ty, nx, ny = sp.frame(s)
+        x, y = x + nx * side * length * 0.35, y + ny * side * length * 0.35
+        if paw:
+            a.shape(blob(x, y, width * 0.55, a.rng, 7, 0.08, ry=width * 0.62), color, outline=DETAIL * 1.2, smooth=True, depth=1, mottle=0, shade_k=0.25, light_k=0)
+            for k in (-1, 0, 1):  # toes
+                px, py = x - tx * width * 0.45 + nx * k * width * 0.22, y - ty * width * 0.45 + ny * k * width * 0.22
+                a.ink([(px + tx * 3, py + ty * 3), (px - tx * 1, py - ty * 1)], FINE, color=shade(color, 0.5), alpha=0.7)
+        else:
+            a.shape(blob(x, y, width * 0.52, a.rng, 7, 0.06, ry=width * 0.42), hoof, outline=DETAIL * 1.2, smooth=True, depth=1, mottle=0, shade_k=0.25, light_k=0)
+            a.ink([(x - nx * side * width * 0.1 - tx * width * 0.4, y - ny * side * width * 0.1 - ty * width * 0.4), (x - tx * width * 0.05, y - ty * width * 0.05)], FINE * 1.1, color=shade(hoof, 0.5), alpha=0.7)
+
+
+def tail(a, sp, kind, color, length):
+    bx, by = sp.at(0.985)
+    _, _, tx, ty, nx, ny = sp.frame(1.0)
+    sw = a.rng.choice((-1, 1))
+
+    def pt(f_along, f_side):
+        return (bx + tx * length * f_along + nx * sw * length * f_side, by + ty * length * f_along + ny * sw * length * f_side)
+
+    if kind == "rope":  # cattle, donkey: thin tail with a tuft
+        pts = chaikin([(bx, by - 4), pt(0.3, 0.16), pt(0.65, 0.02), pt(1.0, 0.14)], False, 3)
+        a.ink(pts, 11, color=INK, taper=False)
+        a.ink(pts, 5.5, color=color, taper=False)
+        ex, ey = pts[-1]
+        tuft = [(ex - 8, ey - 6), (ex + 8, ey - 6), (ex + 6, ey + 18), (ex, ey + 26), (ex - 6, ey + 18)]
+        a.shape(tuft, shade(color, 0.3), outline=DETAIL * 1.2, corner=5, depth=2, mottle=0, detail=lambda art, p: [art.ink([(ex + d, ey - 3), (ex + d * 0.6, ey + 20)], FINE * 0.8, color=shade(color, 0.55), alpha=0.6) for d in (-3, 0, 3)])
+    elif kind == "horse":  # long hair: full near the dock, wavy, tapering to locks
+        mid = chaikin([(bx, by - 14), pt(0.35, 0.14), pt(0.7, -0.02), pt(1.0, 0.1)], False, 3)
+        n = len(mid)
+        w0 = sp.W * 0.11
+
+        def wid(i):
+            t = i / (n - 1)
+            return w0 * (0.75 + 0.7 * math.sin(math.pi * min(1, t * 1.6)) ** 0.7) * (1 - 0.8 * t ** 1.5)
+
+        def norm(i):
+            (x0, y0), (x1, y1) = mid[max(0, i - 1)], mid[min(n - 1, i + 1)]
+            d = math.hypot(x1 - x0, y1 - y0) or 1
+            return -(y1 - y0) / d, (x1 - x0) / d
+
+        left, right = [], []
+        for i, (x, y) in enumerate(mid):
+            ux, uy = norm(i)
+            left.append((x - ux * wid(i), y - uy * wid(i)))
+            right.append((x + ux * wid(i), y + uy * wid(i)))
+        tip = mid[-1]
+        tx2, ty2 = tip[0] - mid[-4][0], tip[1] - mid[-4][1]
+        d = math.hypot(tx2, ty2) or 1
+        tips = [(tip[0] + tx2 / d * 14 + k * 5, tip[1] + ty2 / d * 14) for k in (-1, 1)]
+
+        def hair(art, p):
+            for dd in (-0.7, -0.35, 0, 0.35, 0.7):
+                pts_ = []
+                for i, (x, y) in enumerate(mid[3:], 3):
+                    ux, uy = norm(i)
+                    pts_.append((x + ux * wid(i) * dd, y + uy * wid(i) * dd))
+                art.ink(pts_, FINE * 1.1, color=shade(color, 0.45), alpha=0.6)
+
+        a.shape(left + [tips[0], (tip[0], tip[1] + 4), tips[1]] + right[::-1], color, outline=DETAIL * 1.4, corner=4, wob=0.6, depth=3, light_k=0.3, detail=hair)
+    elif kind == "curly":  # pig
+        cx, cy = pt(0.6, 0.2)
+        spiral = [(cx + (3 + 2.2 * t) * math.cos(t * 1.7), cy + (3 + 2.2 * t) * math.sin(t * 1.7)) for t in [k * 0.2 for k in range(26)]][::-1]
+        spiral = [(bx, by - 2)] + spiral[:1] + spiral
+        a.ink(spiral, 10, color=INK, taper=True)
+        a.ink(spiral, 5.5, color=color, taper=True)
+    elif kind == "stub":  # sheep, goat
+        x, y = pt(0.25, 0)
+        a.shape(ellipse(x, y, length * 0.34, length * 0.46, 20), color, outline=DETAIL * 1.3, depth=2, mottle=0)
+    else:  # dog / cat: tapered, swinging to one side
+        bend = 0.3 if kind == "dog" else 0.55
+        pts = chaikin([(bx, by - 8), pt(0.45, bend * 0.35), pt(0.85, bend)], False, 3)
+        w = sp.W * (0.15 if kind == "dog" else 0.13)
+        a.ink(pts, w + 2 * DETAIL * 1.3, color=INK, taper=True, var=0.05)
+        a.ink(pts, w, color=color, taper=True, var=0.05)
+
+
+def head_frame(sp, s):
+    """Map head-relative (u right, v forward) offsets to canvas points, so
+    ears and horns turn with the head."""
+    x, y, tx, ty, nx, ny = sp.frame(s)
+
+    def P(px, py, u, v):
+        return (px + nx * u - tx * v, py + ny * u - ty * v)
+
+    return P
+
+
+def rot_ellipse(P, ox, oy, u, v, ru, rv, n=24, pinch=0.0):
+    """An ellipse in head coordinates centred at (u, v)."""
+    return [P(ox, oy, u + ru * math.cos(t), v + rv * math.sin(t) * (1 + pinch * math.cos(t))) for t in [2 * math.pi * k / n for k in range(n)]]
+
+
+def ears(a, sp, kind, s, color, inner=None):
+    """Ears rooted on the skull: the base sits inside the head outline."""
+    inner = inner or tint(color, 0.3)
+    W = sp.W
+    P = head_frame(sp, s)
+    for side in (-1, 1):
+        ox, oy = sp.at(s, side * 0.7)
+        if kind == "cow":  # out to the side behind the horns, drooping back
+            ox, oy = sp.at(s + 0.02, side * 0.7)
+            P2 = head_frame(sp, s + 0.02)
+            shp = [P2(ox, oy, side * (W * 0.12 + W * 0.15 * math.cos(t)), -W * 0.03 + W * 0.065 * math.sin(t) * (1 + 0.3 * math.cos(t)) - W * 0.05 * (1 + math.cos(t)) / 2) for t in [k * math.pi / 14 for k in range(28)]]
+            inn = [P2(ox, oy, side * (W * 0.15 + W * 0.08 * math.cos(t)), -W * 0.05 + W * 0.025 * math.sin(t)) for t in [k * math.pi / 8 for k in range(16)]]
+            a.shape(shp, color, outline=DETAIL * 1.3, corner=0, depth=2, light_k=0.3, mottle=0, detail=lambda art, p, inn=inn: art.fill_path(to_path(inn), inner, 0.8))
+        elif kind in ("horse", "donkey"):  # upright, pointed, tipped forward
+            ox, oy = sp.at(s, side * 0.45)
+            Le = W * (0.24 if kind == "horse" else 0.40)
+            pts = [P(ox, oy, -side * Le * 0.1, -Le * 0.12), P(ox, oy, side * Le * 0.25, -Le * 0.05), P(ox, oy, side * Le * 0.3, Le * 0.55), P(ox, oy, side * Le * 0.18, Le * 0.85), P(ox, oy, -side * Le * 0.02, Le * 0.4)]
+            a.shape(chaikin(pts, True, 2), color, outline=DETAIL * 1.2, corner=0, depth=2, mottle=0, detail=lambda art, p, ox=ox, oy=oy, side=side, Le=Le, P=P: art.ink([P(ox, oy, side * Le * 0.1, 0), P(ox, oy, side * Le * 0.17, Le * 0.6)], FINE * 1.6, color=shade(color, 0.45), alpha=0.7))
+        elif kind == "pig":  # big floppy triangles over the face
+            ox, oy = sp.at(s, side * 0.45)
+            r = W * 0.24
+            pts = [P(ox, oy, -side * r * 0.35, -r * 0.35), P(ox, oy, side * r * 0.7, -r * 0.2), P(ox, oy, side * r * 0.35, r * 1.0)]
+            a.shape(pts, color, outline=DETAIL * 1.3, corner=7, depth=3, light_k=0.35, mottle=0)
+        elif kind in ("sheep", "goat"):  # sideways, drooping back
+            a.shape(rot_ellipse(P, ox, oy, side * W * 0.1, -W * 0.05, W * 0.14, W * 0.055, pinch=0.25), color, outline=DETAIL * 1.2, corner=0, depth=2, mottle=0)
+        elif kind == "floppy":  # dog: hanging down the sides of the head
+            ox, oy = sp.at(s, side * 0.8)
+            a.shape(rot_ellipse(P, ox, oy, side * W * 0.04, -W * 0.08, W * 0.09, W * 0.17, pinch=0.2), color, outline=DETAIL * 1.2, corner=0, depth=2, light_k=0.2, mottle=0)
+        else:  # pointy cat ears
+            ox, oy = sp.at(s, side * 0.55)
+            r = W * 0.34
+            pts = [P(ox, oy, -side * r * 0.45, -r * 0.25), P(ox, oy, side * r * 0.5, -r * 0.3), P(ox, oy, side * r * 0.3, r * 0.85)]
+            inn = [P(ox, oy, -side * r * 0.15, -r * 0.15), P(ox, oy, side * r * 0.3, -r * 0.18), P(ox, oy, side * r * 0.22, r * 0.45)]
+            a.shape(pts, color, outline=DETAIL * 1.2, corner=3, depth=2, mottle=0, detail=lambda art, p, inn=inn: art.fill_path(to_path(inn), inner, 0.85))
+
+
+def horns(a, sp, s, color, kind):
+    """Tapered horns growing from the poll, darker at the base."""
+    W = sp.W
+    P = head_frame(sp, s)
+    for side in (-1, 1):
+        ox, oy = sp.at(s, side * 0.45)
+        if kind == "cow":  # short: out, then curving forward and up
+            mid = [(0, 0), (side * W * 0.16, W * 0.01), (side * W * 0.23, W * 0.12)]
+            wd = 13
+        elif kind == "ox":  # long and wide, tips turned forward
+            mid = [(0, 0), (side * W * 0.3, -W * 0.02), (side * W * 0.46, W * 0.14)]
+            wd = 16
+        else:  # goat: swept back over the neck
+            ox, oy = sp.at(s, side * 0.3)
+            mid = [(0, W * 0.03), (side * W * 0.12, -W * 0.16), (side * W * 0.07, -W * 0.34)]
+            wd = 13
+        pts = chaikin([P(ox, oy, u, v) for u, v in mid], False, 2)
+        a.ink(pts, wd + 7, color=INK, taper=True)
+        a.ink(pts, wd, color=color, taper=True)
+        a.ink(pts[: len(pts) // 3], wd * 0.8, color=shade(color, 0.3), alpha=0.7, taper=False)
+        for t in (0.45, 0.6, 0.75):  # growth rings
+            i = int(len(pts) * t)
+            (px, py), (qx, qy) = pts[i], pts[i + 1]
+            d = math.hypot(qx - px, qy - py) or 1
+            ux, uy = -(qy - py) / d, (qx - px) / d
+            a.ink([(px - ux * wd * 0.3, py - uy * wd * 0.3), (px + ux * wd * 0.3, py + uy * wd * 0.3)], FINE, color=shade(color, 0.45), alpha=0.6, taper=False)
+
+
+def eyes(a, sp, s, side_k=0.9, color=INK, closed=False):
+    """Eyes on the sides of the head, as seen from above: small dark almonds."""
+    for side in (-1, 1):
+        x, y = sp.at(s, side * side_k)
+        r = max(3.0, sp.W * 0.026)
+        if closed:
+            a.ink([(x - r, y), (x, y + r * 0.5), (x + r, y)], 2.2, color=INK, alpha=0.85)
+            continue
+        a.fill_path(to_path(ellipse(x, y, r * 0.8, r * 1.2, 14)), color, 1.0)
+        a.fill_path(to_path(ellipse(x - r * 0.2, y - r * 0.4, r * 0.3, r * 0.3, 8)), (240, 236, 228), 0.85)
+
+
+def nostrils(a, sp, color, k=0.42):
+    for side in (-1, 1):
+        x, y = sp.at(0.012, side * k)
+        r = max(2.0, sp.W * 0.022)
+        a.fill_path(to_path(ellipse(x, y, r, r * 1.4, 12, rot=side * 0.45)), color, 0.9)
+
+
+def beast(kind, L, color, *, muzzle=None, spots=None, blaze=None, mane=None, tail_c=None, hoof=None, horn=None, ear_c=None, stripes=None, bend=None):
+    """A quadruped `L` px from nose to rump; `kind` picks the body plan and
+    the ears/tail/head details."""
+    plan = {"ox": "cow", "calf": "cow", "donkey": "horse", "pony": "horse"}.get(kind, kind)
+    Wk, profile, anch = PLANS[plan]
+    head_k = {"cow": 1.3, "horse": 1.2, "goat": 1.2, "dog": 1.12, "hound": 1.12, "cat": 1.08, "sheep": 1.2}.get(plan, 1.0)
+    profile = [(s, w * (head_k if s <= anch["ear"] + 0.02 else 1.0)) for s, w in profile]
+    if kind == "pony":  # stockier, bigger head
+        profile = [(s, w * 1.12) for s, w in profile]
+    if kind == "calf":
+        profile = [(s, w * (1.2 if s < 0.3 else 0.95)) for s, w in profile]
+
+    def make(seed=1300):
+        W = Wk * L
+        size = int(L * 2.2 + 140)
+        a = Art(size, size, seed)
+        b = bend if bend is not None else a.rng.choice((-1, 1)) * a.rng.uniform(0.25, 0.5)
+        sp = Spine(size / 2, 80 + W * 0.3, L, W, profile, b, a.rng)
+        tc = tail_c or shade(color, 0.15)
+        ec = ear_c or shade(color, 0.08)
+        body = sp.outline()
+        soft_shadow(a, body, dx=6, dy=8, alpha=0.28, blur=7)
+        # Under the body: the tips of the legs, the tail.
+        lc = shade(color, 0.12)
+        if plan in ("cow", "horse", "goat"):
+            legs(a, sp, lc, hoof or shade(color, 0.55), 0.47, 0.86, L * 0.07, W * (0.13 if plan == "horse" else 0.15))
+        elif plan == "sheep":
+            legs(a, sp, ec, shade(ec, 0.4), 0.47, 0.86, L * 0.06, W * 0.12)
+        elif plan in ("dog", "hound", "cat"):
+            legs(a, sp, lc, lc, 0.45, 0.87, L * 0.07, W * 0.17, paw=True)
+        else:
+            legs(a, sp, lc, shade(color, 0.45), 0.32, 0.84, L * 0.04, W * 0.12)
+        tk = {"cow": "rope", "horse": "horse", "pig": "curly", "sheep": "stub", "goat": "stub", "dog": "dog", "hound": "dog", "cat": "cat"}[plan]
+        if kind == "donkey":
+            tk = "rope"
+        tail(a, sp, tk, tc, {"rope": L * 0.32, "horse": L * 0.34, "curly": L * 0.12, "stub": W * 0.3, "dog": L * 0.42, "cat": L * 0.8}[tk])
+        line = shade(color, 0.42)
+
+        if plan == "sheep":
+            # Dark head, then the woolly fleece over the neck and body.
+            a.shape(sp.outline(0, 0.42), ec, outline=OUTLINE * 0.75, corner=0, depth=4, light_k=0.35)
+            ears(a, sp, "sheep", anch["ear"], ec)
+            eyes(a, sp, anch["eye"], 0.92, color=(20, 16, 14) if sum(ec) > 300 else (230, 220, 200))
+            nostrils(a, sp, shade(ec, 0.6) if sum(ec) > 300 else tint(ec, 0.25), 0.35)
+            cx, cy = sp.at(0.64)
+            fleece = scallop(cx, cy, W * 0.52, a.rng, 16, 0.08, ry=L * 0.42)
+
+            def wool(art, p):
+                for _ in range(int(W * L / 380)):
+                    x, y = art.rng.uniform(cx - W / 2, cx + W / 2), art.rng.uniform(cy - L * 0.42, cy + L * 0.42)
+                    r = art.rng.uniform(4, 7) * L / 220
+                    art.ink([(x + r * math.cos(t), y + r * math.sin(t)) for t in [k * 0.5 for k in range(11)]], FINE, color=shade(color, 0.3), alpha=0.55, wob=0.3)
+
+            a.shape(fleece, color, outline=OUTLINE * 0.8, corner=0, depth=L * 0.05, light_k=0.45, detail=wool)
+            hx, hy = sp.at(0.27)
+            a.shape(scallop(hx, hy, W * 0.2, a.rng, 7, 0.2), tint(color, 0.05), outline=DETAIL * 1.3, corner=0, depth=2, mottle=0)
+            return autocrop(a.image())
+
+        def detail(art, p):
+            if muzzle:
+                mx, my = sp.at(0.0)
+                art.fill_path(to_path(ellipse(mx, my, sp.hw(0.03) * 1.3, L * 0.06, 32)), muzzle, 1.0)
+            if blaze:
+                art.ink(sp.line(0.05, 0.22), sp.W * 0.07, color=blaze, alpha=0.95, taper=True, var=0.25)
+            if spots:
+                sc, n = spots
+                for _ in range(n):
+                    s = art.rng.uniform(0.2, 0.95)
+                    x, y = sp.at(s, art.rng.uniform(-1.0, 1.0))
+                    r = sp.hw(s) * art.rng.uniform(0.25, 0.5)
+                    art.shape(blob(x, y, r, art.rng, 13, 0.4, ry=r * art.rng.uniform(0.8, 1.6)), sc, outline=0, smooth=True, depth=1, shade_k=0, light_k=0, ao=0, mottle=0)
+            if stripes:  # tabby: broken stripes from the spine down each flank
+                for k in range(8):
+                    s = 0.32 + k * 0.08 + art.rng.uniform(-0.015, 0.015)
+                    for side in (-1, 1):
+                        if art.rng.random() < 0.15:
+                            continue
+                        art.ink(chaikin([sp.at(s, side * 0.12), sp.at(s + 0.012, side * 0.5), sp.at(s + 0.035, side * art.rng.uniform(0.75, 0.95))], False, 2), sp.W * 0.04, color=stripes, alpha=0.6, taper=True)
+                art.ink(sp.line(0.3, 0.95), sp.W * 0.06, color=stripes, alpha=0.5, taper=True)
+                for side in (-1, 1):
+                    art.ink(sp.line(0.06, 0.16, side * 0.3), sp.W * 0.03, color=stripes, alpha=0.7, taper=True)
+            # Anatomy: spine, shoulder blades and hip bones as soft lines.
+            art.ink(sp.line(0.42, 0.92), FINE * 1.2, color=line, alpha=0.3)
+            for side in (-1, 1):
+                art.ink(chaikin([sp.at(0.42, side * 0.25), sp.at(0.48, side * 0.6), sp.at(0.56, side * 0.55)], False, 2), FINE * 1.1, color=line, alpha=0.45)
+                art.ink(chaikin([sp.at(0.78, side * 0.3), sp.at(0.82, side * 0.65), sp.at(0.9, side * 0.55)], False, 2), FINE * 1.1, color=line, alpha=0.45)
+            if plan == "pig":
+                art.ink(chaikin([sp.at(0.22, -0.65), sp.at(0.25, 0), sp.at(0.22, 0.65)], False, 2), FINE * 1.1, color=line, alpha=0.4)
+            else:  # cheek line where the head meets the neck
+                for side in (-1, 1):
+                    art.ink(chaikin([sp.at(anch["eye"] + 0.02, side * 0.6), sp.at(anch["ear"] + 0.03, side * 0.75), sp.at(anch["ear"] + 0.07, side * 0.6)], False, 2), FINE * 1.1, color=line, alpha=0.4)
+            fur(art, sp, line, int(L / 8) if plan != "pig" else int(L / 22), L=max(6, L * 0.025))
+
+        a.shape(body, color, outline=OUTLINE * 0.8, corner=0, wob=0.8, depth=L * 0.03, light_k=0.4, ao=0.25, detail=detail)
+        if mane:
+            # Mane: tapered strands falling from the neck crest down one side
+            # and back, each over the one behind; a forelock between the ears.
+            side = -1 if b > 0 else 1
+            s0, s1 = anch["ear"] + 0.01, 0.47
+            n = 8
+            for k in range(n, -1, -1):
+                s = s0 + (s1 - s0) * k / n
+                x0, y0 = sp.at(s, -side * 0.1)
+                _, _, tx, ty, nx, ny = sp.frame(s)
+                Lh = sp.hw(s) * (1.0 + 0.3 * a.rng.random())
+                ex, ey = x0 + nx * side * Lh + tx * Lh * 0.8, y0 + ny * side * Lh + ty * Lh * 0.8
+                mx, my = x0 + nx * side * Lh * 0.6 + tx * Lh * 0.15, y0 + ny * side * Lh * 0.6 + ty * Lh * 0.15
+                pts = chaikin([(x0, y0), (mx, my), (ex, ey)], False, 3)
+                w = sp.W * 0.15
+                a.ink(pts, w + 2 * DETAIL * 1.1, color=INK, taper=True, var=0.1)
+                a.ink(pts, w, color=mane, taper=True, var=0.1)
+                a.ink(pts[2:-3], FINE, color=shade(mane, 0.45), alpha=0.6, taper=True)
+            for k in (-1, 0, 1):
+                fp = [sp.at(anch["ear"] + 0.01, k * 0.12), sp.at(anch["ear"] - 0.03, k * 0.2), sp.at(anch["ear"] - 0.06, k * 0.14)]
+                a.ink(fp, sp.W * 0.07 + 2 * DETAIL, color=INK, taper=True)
+                a.ink(fp, sp.W * 0.07, color=mane, taper=True)
+        ears(a, sp, {"cow": "cow", "horse": "donkey" if kind == "donkey" else "horse", "pig": "pig", "goat": "goat", "dog": "floppy", "hound": "floppy", "cat": "cat"}[plan], anch["ear"], ec)
+        if horn:
+            horns(a, sp, anch["horn"], horn, {"cow": "cow", "calf": "cow", "ox": "ox", "goat": "goat", "black_goat": "goat"}.get(kind, "goat"))
+        if plan == "pig":
+            x, y = sp.at(0.0)
+            r = sp.hw(0.03) * 0.95
+            a.shape(ellipse(x, y + r * 0.1, r, r * 0.7, 28), muzzle or shade(color, 0.08), outline=DETAIL * 1.3, depth=2, light_k=0.3, mottle=0)
+            for side in (-1, 1):
+                dot(a, x + side * r * 0.35, y + r * 0.1, r * 0.17, shade(color, 0.6))
+            eyes(a, sp, anch["eye"], 0.75)
+        elif plan == "cat":
+            eyes(a, sp, anch["eye"], 0.6, color=rgb("#9a8a3a"))
+            x, y = sp.at(0.0, 0, -4)
+            a.shape([(x - 4, y), (x + 4, y), (x, y + 4)], rgb("#d89a9a"), outline=FINE, corner=1, depth=1, mottle=0)
+            for side in (-1, 1):  # whiskers
+                wx, wy = sp.at(0.03, side * 0.55)
+                for k in (-1, 0, 1):
+                    a.ink([(wx, wy), (wx + side * sp.W * 0.3, wy - sp.W * (0.06 + 0.06 * k))], 1.3, color=INK, alpha=0.5, wob=0.2)
+        else:
+            eyes(a, sp, anch["eye"], 0.92)
+            if plan in ("dog", "hound"):
+                x, y = sp.at(0.0, 0, -2)
+                a.shape(ellipse(x, y + 4, sp.W * 0.055, sp.W * 0.04, 16), INK, outline=0, depth=1, shade_k=0, light_k=0, ao=0, mottle=0)
+            else:
+                nostrils(a, sp, shade(muzzle or color, 0.6))
+        return autocrop(a.image())
+
+    return make
+
+
+def curled_cat(seed=1366, color=rgb("#3a3436"), stripes=None):
+    """A cat asleep, curled into a ball with its tail wrapped round."""
+    s = 240
+    a = Art(s, s, seed)
+    c = s / 2
+    R = 62
+    soft_shadow(a, ellipse(c, c, R, R * 0.92, 48), dx=5, dy=7, alpha=0.28, blur=6)
+    body = [(c + R * math.cos(t) * (1 + 0.05 * math.sin(3 * t)), c + R * 0.92 * math.sin(t)) for t in [2 * math.pi * k / 72 for k in range(72)]]
+    line = tint(color, 0.25)
+
+    def detail(art, p):
+        if stripes:
+            for k in range(8):
+                t = -1.2 + k * 0.42
+                art.ink([(c + R * 0.3 * math.cos(t), c + R * 0.3 * math.sin(t)), (c + R * 0.95 * math.cos(t + 0.1), c + R * 0.95 * math.sin(t + 0.1))], 6, color=stripes, alpha=0.7, taper=True)
+        # The spine curling round, and fur lying along it.
+        art.ink([(c + R * 0.72 * math.cos(t), c + R * 0.66 * math.sin(t)) for t in [-3.0 + k * 0.12 for k in range(34)]], FINE * 1.2, color=line, alpha=0.5)
+        for _ in range(30):
+            t = art.rng.uniform(0, 6.28)
+            r = art.rng.uniform(0.4, 0.9) * R
+            x, y = c + r * math.cos(t), c + r * math.sin(t)
+            art.ink([(x, y), (x - 7 * math.sin(t), y + 7 * math.cos(t))], FINE * 0.9, color=line, alpha=0.45)
+
+    a.shape(body, color, outline=OUTLINE * 0.8, corner=0, smooth=True, depth=6, light_k=0.4, detail=detail)
+    # Tail wrapped round the front, the head tucked against it.
+    tp = [(c + R * 0.98 * math.cos(t), c + R * 0.9 * math.sin(t)) for t in [0.1 + k * 0.08 for k in range(30)]]
+    a.ink(tp, 22 + 2 * DETAIL * 1.3, color=INK, taper=True, var=0.05)
+    a.ink(tp, 22, color=shade(color, 0.05), taper=True, var=0.05)
+    hx, hy = c - R * 0.12, c + R * 0.38
+    for side in (-1, 1):
+        ex, ey = hx + side * 22, hy - 16
+        a.shape([(ex - side * 11, ey + 6), (ex + side * 10, ey + 4), (ex + side * 7, ey - 17)], color, outline=DETAIL * 1.2, corner=3, depth=2, mottle=0, detail=lambda art, p, ex=ex, ey=ey, side=side: art.fill_path(to_path([(ex - side * 4, ey + 3), (ex + side * 5, ey + 2), (ex + side * 5, ey - 8)]), tint(color, 0.3), 0.85))
+    a.shape(ellipse(hx, hy, 34, 28, 36), tint(color, 0.06), outline=DETAIL * 1.6, depth=3, light_k=0.4, mottle=0)
+    for side in (-1, 1):  # closed eyes
+        a.ink([(hx + side * 8, hy + 2), (hx + side * 13, hy + 5), (hx + side * 18, hy + 2)], 2.4, color=tint(color, 0.45) if sum(color) < 300 else INK, alpha=0.9, taper=True)
+    a.shape([(hx - 4, hy + 12), (hx + 4, hy + 12), (hx, hy + 16)], rgb("#d89a9a"), outline=FINE, corner=1, depth=1, mottle=0)
+    return autocrop(a.image())
+
+
+# -- birds and small animals ----------------------------------------------------------------
+
+
+def bird(a, cx, cy, size, body, wing, head_c=None, beak=rgb("#e0a640"), tail=None, comb=None, long_neck=False):
+    """A bird from above, head toward the top: tail feathers, body, folded
+    wings over the back, head with beak (a comb for roosters/hens)."""
+    head_c = head_c or body
+    L, W = size, size * 0.62
+    top = cy - L / 2
+    tc = tail or shade(wing, 0.1)
+    a.shape([(cx - W * 0.22, cy + L * 0.25), (cx + W * 0.22, cy + L * 0.25), (cx + W * 0.3, cy + L * 0.62), (cx, cy + L * 0.68), (cx - W * 0.3, cy + L * 0.62)], tc, outline=DETAIL * 1.3, corner=4, depth=2, mottle=0)
+    a.shape(ellipse(cx, cy + L * 0.08, W / 2, L * 0.4, 40), body, outline=OUTLINE * 0.7, depth=4, light_k=0.4)
+    for side in (-1, 1):
+        wpts = chaikin([(cx + side * W * 0.05, cy - L * 0.18), (cx + side * W * 0.5, cy - L * 0.02), (cx + side * W * 0.42, cy + L * 0.34), (cx + side * W * 0.12, cy + L * 0.42)], True, 2)
+        a.shape(wpts, wing, outline=DETAIL * 1.3, corner=0, depth=2, light_k=0.3, mottle=0, detail=lambda art, p, side=side: [art.ink([(cx + side * W * (0.18 + 0.1 * k), cy + L * 0.05 + k * 6), (cx + side * W * (0.22 + 0.1 * k), cy + L * 0.32)], FINE, color=shade(wing, 0.4), alpha=0.7) for k in range(3)])
+    hy = top + L * (0.0 if long_neck else 0.1)
+    if long_neck:
+        a.ink([(cx, cy - L * 0.18), (cx, hy + L * 0.05)], W * 0.26 + 6, color=INK, taper=False)
+        a.ink([(cx, cy - L * 0.18), (cx, hy + L * 0.05)], W * 0.26, color=head_c, taper=False)
+    a.shape(ellipse(cx, hy, W * 0.22, W * 0.24, 28), head_c, outline=DETAIL * 1.4, depth=2, light_k=0.4, mottle=0)
+    if comb:
+        a.shape(scallop(cx, hy + W * 0.02, W * 0.1, a.rng, 4, 0.3, ry=W * 0.16), comb, outline=FINE * 1.3, depth=1, mottle=0)
+    a.shape([(cx - W * 0.08, hy - W * 0.18), (cx + W * 0.08, hy - W * 0.18), (cx, hy - W * 0.38)], beak, outline=FINE * 1.4, corner=1, depth=1, mottle=0)
+
+
+def bird_obj(size, **kw):
+    def make(seed=1350):
+        s = int(size * 1.6)
+        a = Art(s, s, seed)
+        soft_shadow(a, (s / 2, s / 2 + size * 0.1), size * 0.32, 3, 4, 0.3, 3)
+        bird(a, s / 2, s / 2 - size * 0.05, size, **kw)
+        return a.image()
+
+    return make
+
+
+def chicks(seed=1360):
+    s = 200
+    a = Art(s, s, seed)
+    for x, y in ((70, 70), (130, 80), (90, 130), (140, 140)):
+        soft_shadow(a, (x, y), 14, 2, 3, 0.3, 2)
+        bird(a, x, y, 40, rgb("#f2d25a"), rgb("#e6c24a"), beak=rgb("#e0883a"))
+    return a.image()
+
+
+def frog(seed=1362):
+    s = 120
+    a = Art(s, s, seed)
+    m = s / 2
+    c = rgb("#6f9a45")
+    for side in (-1, 1):
+        a.shape(ellipse(m + side * 30, m + 26, 18, 10, 20, rot=side * 0.6), shade(c, 0.1), outline=DETAIL * 1.2, depth=2, mottle=0)
+        a.shape(ellipse(m + side * 24, m - 14, 8, 6, 16), shade(c, 0.1), outline=DETAIL, depth=1, mottle=0)
+    a.shape(ellipse(m, m + 6, 28, 30, 36), c, outline=DETAIL * 1.6, depth=3, light_k=0.4, detail=lambda art, p: [dot(art, m + art.rng.uniform(-16, 16), m + art.rng.uniform(-6, 26), 3, shade(c, 0.35)) for _ in range(6)])
+    for side in (-1, 1):
+        a.shape(ellipse(m + side * 12, m - 18, 8, 8, 16), tint(c, 0.15), outline=DETAIL * 1.1, depth=2, mottle=0)
+        dot(a, m + side * 12, m - 19, 3.4)
+    return a.image()
+
+
+def snake(seed=1363):
+    s = 200
+    a = Art(s, s, seed)
+    m = s / 2
+    c = rgb("#7a8a3e")
+    sp = [(m + (14 + 6.5 * t) * math.cos(t * 1.15), m + (14 + 6.5 * t) * math.sin(t * 1.15)) for t in [k * 0.12 for k in range(100)]]
+    sp = sp[::-1]
+    a.ink([(x + 3, y + 4) for x, y in sp], 22, color=INK, alpha=0.25, taper=True)
+    a.ink(sp, 24, color=INK, taper=True)
+    a.ink(sp, 17, color=c, taper=True)
+    for i in range(4, len(sp) - 4, 5):
+        dot(a, sp[i][0], sp[i][1], 3.4, shade(c, 0.4))
+    hx, hy = sp[0]
+    a.shape(ellipse(hx, hy, 15, 11, 24, rot=1.15 * 11.9 + math.pi / 2), c, outline=DETAIL * 1.4, depth=2, light_k=0.4, mottle=0)
+    return a.image()
+
+
+# The rat keeps the simple small-critter drawing.
 def quadruped(a, cx, cy, L, W, color, head=0.32, muzzle=None, ears="up", ear_color=None, tail="thin",
               tail_color=None, legs=True, leg_color=None, spots=None, horns=None, mane=None, wool=False, belly=None):
     """A four-legged animal seen from above, head toward the top. L/W are
@@ -104,106 +653,6 @@ def quadruped(a, cx, cy, L, W, color, head=0.32, muzzle=None, ears="up", ear_col
             dot(a, cx + side * hw * 0.12, my - hl * ml * 0.4, max(1.8, hw * 0.04), shade(mc, 0.6))
     if mane:
         a.ink([(cx, hcy - hl * 0.1), (cx, hcy + hl * 0.45)], 7, color=mane, taper=False)
-
-
-def animal(w, h, **kw):
-    def make(seed=1300):
-        L, hd = kw["L"], kw.get("head", 0.32)
-        tail_room = {"bushy": 0.4, "thin": 0.3, "curly": 0.1, "stub": 0.08}.get(kw.get("tail", "thin"), 0.1)
-        hh = int(L * (1 + hd * 0.8 + tail_room) + 50)
-        a = Art(w, hh, seed)
-        cy = 25 + L * hd * 0.8 + L / 2
-        soft_shadow(a, ellipse(w / 2, cy, kw["W"] / 2, kw["L"] / 2, 48), dx=5, dy=7, alpha=0.3, blur=6)
-        quadruped(a, w / 2, cy, **kw)
-        return a.image()
-
-    return make
-
-
-def bird(a, cx, cy, size, body, wing, head_c=None, beak=rgb("#e0a640"), tail=None, comb=None, long_neck=False):
-    """A bird from above, head toward the top: tail feathers, body, folded
-    wings over the back, head with beak (a comb for roosters/hens)."""
-    head_c = head_c or body
-    L, W = size, size * 0.62
-    top = cy - L / 2
-    tc = tail or shade(wing, 0.1)
-    a.shape([(cx - W * 0.22, cy + L * 0.25), (cx + W * 0.22, cy + L * 0.25), (cx + W * 0.3, cy + L * 0.62), (cx, cy + L * 0.68), (cx - W * 0.3, cy + L * 0.62)], tc, outline=DETAIL * 1.3, corner=4, depth=2, mottle=0)
-    a.shape(ellipse(cx, cy + L * 0.08, W / 2, L * 0.4, 40), body, outline=OUTLINE * 0.7, depth=4, light_k=0.4)
-    for side in (-1, 1):
-        wpts = chaikin([(cx + side * W * 0.05, cy - L * 0.18), (cx + side * W * 0.5, cy - L * 0.02), (cx + side * W * 0.42, cy + L * 0.34), (cx + side * W * 0.12, cy + L * 0.42)], True, 2)
-        a.shape(wpts, wing, outline=DETAIL * 1.3, corner=0, depth=2, light_k=0.3, mottle=0, detail=lambda art, p, side=side: [art.ink([(cx + side * W * (0.18 + 0.1 * k), cy + L * 0.05 + k * 6), (cx + side * W * (0.22 + 0.1 * k), cy + L * 0.32)], FINE, color=shade(wing, 0.4), alpha=0.7) for k in range(3)])
-    hy = top + L * (0.0 if long_neck else 0.1)
-    if long_neck:
-        a.ink([(cx, cy - L * 0.18), (cx, hy + L * 0.05)], W * 0.26 + 6, color=INK, taper=False)
-        a.ink([(cx, cy - L * 0.18), (cx, hy + L * 0.05)], W * 0.26, color=head_c, taper=False)
-    a.shape(ellipse(cx, hy, W * 0.22, W * 0.24, 28), head_c, outline=DETAIL * 1.4, depth=2, light_k=0.4, mottle=0)
-    if comb:
-        a.shape(scallop(cx, hy + W * 0.02, W * 0.1, a.rng, 4, 0.3, ry=W * 0.16), comb, outline=FINE * 1.3, depth=1, mottle=0)
-    a.shape([(cx - W * 0.08, hy - W * 0.18), (cx + W * 0.08, hy - W * 0.18), (cx, hy - W * 0.38)], beak, outline=FINE * 1.4, corner=1, depth=1, mottle=0)
-
-
-def bird_obj(size, **kw):
-    def make(seed=1350):
-        s = int(size * 1.6)
-        a = Art(s, s, seed)
-        soft_shadow(a, (s / 2, s / 2 + size * 0.1), size * 0.32, 3, 4, 0.3, 3)
-        bird(a, s / 2, s / 2 - size * 0.05, size, **kw)
-        return a.image()
-
-    return make
-
-
-def chicks(seed=1360):
-    s = 200
-    a = Art(s, s, seed)
-    for x, y in ((70, 70), (130, 80), (90, 130), (140, 140)):
-        soft_shadow(a, (x, y), 14, 2, 3, 0.3, 2)
-        bird(a, x, y, 40, rgb("#f2d25a"), rgb("#e6c24a"), beak=rgb("#e0883a"))
-    return a.image()
-
-
-def cat(seed=1361, color=rgb("#8a7a6a")):
-    w, h = 160, 260
-    a = Art(w, h, seed)
-    soft_shadow(a, ellipse(w / 2, h / 2, 40, 70, 40), dx=4, dy=6)
-    # Curled tail around the side.
-    pts = chaikin([(w / 2, h / 2 + 60), (w / 2 + 40, h / 2 + 70), (w / 2 + 52, h / 2 + 20)], False, 2)
-    a.ink(pts, 16, color=INK, taper=True)
-    a.ink(pts, 10, color=color, taper=True)
-    quadruped(a, w / 2, h / 2 + 10, 120, 70, color, head=0.4, ears="up", tail=None, spots=(shade(color, 0.3), 4))
-    return a.image()
-
-
-def frog(seed=1362):
-    s = 120
-    a = Art(s, s, seed)
-    m = s / 2
-    c = rgb("#6f9a45")
-    for side in (-1, 1):
-        a.shape(ellipse(m + side * 30, m + 26, 18, 10, 20, rot=side * 0.6), shade(c, 0.1), outline=DETAIL * 1.2, depth=2, mottle=0)
-        a.shape(ellipse(m + side * 24, m - 14, 8, 6, 16), shade(c, 0.1), outline=DETAIL, depth=1, mottle=0)
-    a.shape(ellipse(m, m + 6, 28, 30, 36), c, outline=DETAIL * 1.6, depth=3, light_k=0.4, detail=lambda art, p: [dot(art, m + art.rng.uniform(-16, 16), m + art.rng.uniform(-6, 26), 3, shade(c, 0.35)) for _ in range(6)])
-    for side in (-1, 1):
-        a.shape(ellipse(m + side * 12, m - 18, 8, 8, 16), tint(c, 0.15), outline=DETAIL * 1.1, depth=2, mottle=0)
-        dot(a, m + side * 12, m - 19, 3.4)
-    return a.image()
-
-
-def snake(seed=1363):
-    s = 200
-    a = Art(s, s, seed)
-    m = s / 2
-    c = rgb("#7a8a3e")
-    sp = [(m + (14 + 6.5 * t) * math.cos(t * 1.15), m + (14 + 6.5 * t) * math.sin(t * 1.15)) for t in [k * 0.12 for k in range(100)]]
-    sp = sp[::-1]
-    a.ink([(x + 3, y + 4) for x, y in sp], 22, color=INK, alpha=0.25, taper=True)
-    a.ink(sp, 24, color=INK, taper=True)
-    a.ink(sp, 17, color=c, taper=True)
-    for i in range(4, len(sp) - 4, 5):
-        dot(a, sp[i][0], sp[i][1], 3.4, shade(c, 0.4))
-    hx, hy = sp[0]
-    a.shape(ellipse(hx, hy, 15, 11, 24, rot=1.15 * 11.9 + math.pi / 2), c, outline=DETAIL * 1.4, depth=2, light_k=0.4, mottle=0)
-    return a.image()
 
 
 def rat(seed=1364):
@@ -491,9 +940,9 @@ def hull(cx, cy, L, W, bow=0.32, stern=0.12):
 def boat(L, W, paint=RED, seats=3, oars=True, sail=False, canoe=False):
     def make(seed=1500):
         pad = 80 if oars else 40
-        w, h = int(W + pad * 2 + (60 if oars else 0)), int(L + 60)
+        w, h = int(W + pad * 2 + (60 if oars else 0) + (W * 1.0 if sail else 0)), int(L + 60)
         a = Art(w, h, seed)
-        cx, cy = w / 2, h / 2
+        cx, cy = (W / 2 + pad + 20 if sail else w / 2), h / 2
         outer = hull(cx, cy, L, W, bow=0.4 if canoe else 0.32, stern=0.05 if canoe else 0.12)
         if canoe:
             outer = chaikin([(cx, cy - L / 2), (cx + W / 2, cy - L * 0.15), (cx + W / 2, cy + L * 0.15), (cx, cy + L / 2), (cx - W / 2, cy + L * 0.15), (cx - W / 2, cy - L * 0.15)], True, 3)
@@ -515,6 +964,7 @@ def boat(L, W, paint=RED, seats=3, oars=True, sail=False, canoe=False):
             s_pts = [(cx + 8, cy - L * 0.4), (cx + W * 0.9, cy + L * 0.18), (cx + 8, cy + L * 0.22)]
             a.shape(s_pts, rgb("#ece4d3"), outline=DETAIL * 1.4, corner=4, depth=4, light_k=0.4, detail=lambda art, p: [art.ink([(cx + 10, cy - L * 0.4 + k * 30), (cx + W * 0.5, cy + k * 10)], FINE, color=shade(rgb("#ece4d3"), 0.3), alpha=0.6) for k in range(4)])
             a.shape(ellipse(cx, cy - L * 0.15, 11, 11, 20), WOOD_DARK, outline=DETAIL, depth=2, mottle=0)
+            return autocrop(a.image(), 14)
         return a.image()
 
     return make
@@ -840,30 +1290,30 @@ FARM = {
     "Crow": bird_obj(100, body=rgb("#2e2e36"), wing=rgb("#24242a"), beak=rgb("#3a3a40")),
     "Owl": owl,
     "Pigeon": bird_obj(90, body=rgb("#9aa0aa"), wing=rgb("#7a8090"), head_c=rgb("#6a7080"), beak=rgb("#d8c0a0")),
-    "Cow": animal(320, 640, L=440, W=220, color=rgb("#f2ece0"), head=0.24, muzzle=(rgb("#e6b8a8"), 0.16), ears="side", horns=rgb("#e6dcc4"), tail="thin", spots=(rgb("#3a3430"), 6)),
-    "Brown Cow": animal(320, 640, L=440, W=220, color=rgb("#8a5a3a"), head=0.24, muzzle=(rgb("#d8b8a0"), 0.16), ears="side", horns=rgb("#e6dcc4"), tail="thin"),
-    "Ox": animal(340, 660, L=460, W=240, color=rgb("#6a4e3a"), head=0.24, muzzle=(rgb("#c9a88a"), 0.16), ears="side", horns=rgb("#e6dcc4"), tail="thin"),
-    "Pig": animal(220, 400, L=260, W=150, color=rgb("#e8b8a8"), head=0.26, muzzle=(rgb("#d89a8a"), 0.14), ears="floppy", tail="curly"),
-    "Piglet": animal(130, 230, L=140, W=84, color=rgb("#f0c4b4"), head=0.34, muzzle=(rgb("#e0a898"), 0.14), ears="floppy", tail="curly"),
-    "Black Pig": animal(220, 400, L=260, W=150, color=rgb("#4a4248"), head=0.26, muzzle=(rgb("#6a5a60"), 0.14), ears="floppy", tail="curly"),
-    "Sheep": animal(200, 340, L=220, W=150, color=rgb("#efe7d6"), head=0.3, muzzle=None, ears="side", ear_color=rgb("#3a3430"), tail="stub", wool=True, leg_color=rgb("#3a3430")),
-    "Black Sheep": animal(200, 340, L=220, W=150, color=rgb("#4a4442"), head=0.3, ears="side", ear_color=rgb("#2a2422"), tail="stub", wool=True, leg_color=rgb("#2a2422")),
-    "Lamb": animal(140, 230, L=140, W=96, color=rgb("#f4eee2"), head=0.32, ears="side", ear_color=rgb("#d8c8b8"), tail="stub", wool=True),
-    "Goat": animal(170, 330, L=200, W=110, color=rgb("#d8ccb4"), head=0.34, muzzle=(rgb("#c8b8a0"), 0.14), ears="side", horns=rgb("#8a7a6a"), tail="stub"),
-    "Horse": animal(240, 620, L=400, W=170, color=rgb("#8a5a3a"), head=0.36, muzzle=(rgb("#6a4a32"), 0.14), ears="up", tail="bushy", tail_color=rgb("#3a2a22"), mane=rgb("#3a2a22")),
-    "White Horse": animal(240, 620, L=400, W=170, color=rgb("#ece4d8"), head=0.36, muzzle=(rgb("#c8b8b0"), 0.14), ears="up", tail="bushy", tail_color=rgb("#d8d0c4"), mane=rgb("#d8d0c4")),
-    "Black Horse": animal(240, 620, L=400, W=170, color=rgb("#3a3436"), head=0.36, muzzle=(rgb("#4a4446"), 0.14), ears="up", tail="bushy", tail_color=rgb("#24201e"), mane=rgb("#24201e")),
-    "Donkey": animal(200, 480, L=300, W=140, color=rgb("#8a8278"), head=0.38, muzzle=(rgb("#d8d0c4"), 0.15), ears="up", tail="thin", mane=rgb("#4a4440")),
-    "Dog": animal(150, 300, L=180, W=96, color=rgb("#a8783e"), head=0.36, muzzle=(rgb("#8a6030"), 0.16), ears="floppy", tail="thin"),
-    "Black Dog": animal(150, 300, L=180, W=96, color=rgb("#3a3436"), head=0.36, muzzle=(rgb("#4a4446"), 0.16), ears="floppy", tail="thin"),
-    "Hound": animal(150, 330, L=210, W=90, color=rgb("#c9a878"), head=0.38, muzzle=(rgb("#a8885a"), 0.18), ears="floppy", tail="thin", spots=(rgb("#6a4a32"), 3)),
-    "Cat": cat,
-    "Black Cat": lambda: cat(1366, rgb("#3a3436")),
-    "Orange Cat": lambda: cat(1367, rgb("#d08a4a")),
-    "Calf": animal(220, 400, L=260, W=140, color=rgb("#c9a07a"), head=0.28, muzzle=(rgb("#e6c8b0"), 0.16), ears="side", tail="thin"),
-    "Pony": animal(200, 460, L=290, W=140, color=rgb("#a8845a"), head=0.36, muzzle=(rgb("#7a5a3e"), 0.14), ears="up", tail="bushy", tail_color=rgb("#e6dcc4"), mane=rgb("#e6dcc4")),
-    "Black Goat": animal(170, 330, L=200, W=110, color=rgb("#3a3436"), head=0.34, muzzle=(rgb("#5a5254"), 0.14), ears="side", horns=rgb("#8a7a6a"), tail="stub"),
-    "Brown Sheep": animal(200, 340, L=220, W=150, color=rgb("#a88a6a"), head=0.3, ears="side", ear_color=rgb("#3a3430"), tail="stub", wool=True, leg_color=rgb("#3a3430")),
+    "Cow": beast("cow", 400, rgb("#f2ece0"), muzzle=rgb("#e6b8a8"), spots=(rgb("#3a3430"), 7), horn=rgb("#e6dcc4"), tail_c=rgb("#e6dcd0"), hoof=rgb("#4a4440")),
+    "Brown Cow": beast("cow", 400, rgb("#8a5a3a"), muzzle=rgb("#d8b8a0"), blaze=rgb("#efe6d8"), horn=rgb("#e6dcc4")),
+    "Ox": beast("ox", 440, rgb("#6a4e3a"), muzzle=rgb("#c9a88a"), horn=rgb("#e6dcc4")),
+    "Pig": beast("pig", 230, rgb("#e8b8a8"), muzzle=rgb("#e0a898")),
+    "Piglet": beast("pig", 130, rgb("#f0c4b4"), muzzle=rgb("#e8b0a0")),
+    "Black Pig": beast("pig", 230, rgb("#4a4248"), muzzle=rgb("#7a6a70")),
+    "Sheep": beast("sheep", 220, rgb("#efe7d6"), ear_c=rgb("#3a3430")),
+    "Black Sheep": beast("sheep", 220, rgb("#4a4442"), ear_c=rgb("#2a2422")),
+    "Lamb": beast("sheep", 140, rgb("#f4eee2"), ear_c=rgb("#e0d0c0")),
+    "Goat": beast("goat", 220, rgb("#d8ccb4"), muzzle=rgb("#c8b8a0"), horn=rgb("#8a7a6a"), tail_c=rgb("#c8bca4")),
+    "Horse": beast("horse", 440, rgb("#8a5a3a"), muzzle=rgb("#5a3e2c"), blaze=rgb("#efe6d8"), mane=rgb("#3a2a22"), tail_c=rgb("#3a2a22")),
+    "White Horse": beast("horse", 440, rgb("#ece4d8"), muzzle=rgb("#a89a94"), mane=rgb("#d8d0c4"), tail_c=rgb("#d8d0c4"), hoof=rgb("#6a625c")),
+    "Black Horse": beast("horse", 440, rgb("#3a3436"), muzzle=rgb("#4a4446"), mane=rgb("#24201e"), tail_c=rgb("#24201e")),
+    "Donkey": beast("donkey", 320, rgb("#8a8278"), muzzle=rgb("#e0d8cc"), mane=rgb("#4a4440"), tail_c=rgb("#6a625a")),
+    "Dog": beast("dog", 190, rgb("#a8783e"), ear_c=rgb("#7a5228")),
+    "Black Dog": beast("dog", 190, rgb("#3a3436"), ear_c=rgb("#2a2426")),
+    "Hound": beast("hound", 220, rgb("#e6dccb"), spots=(rgb("#8a5a34"), 4), ear_c=rgb("#8a5a34")),
+    "Cat": beast("cat", 130, rgb("#8a7a6a"), stripes=rgb("#5a4e44")),
+    "Black Cat": lambda: curled_cat(1366, rgb("#3a3436")),
+    "Orange Cat": beast("cat", 130, rgb("#d08a4a"), stripes=rgb("#a8602e")),
+    "Calf": beast("calf", 270, rgb("#c9a07a"), muzzle=rgb("#e6c8b0"), tail_c=rgb("#b88e6a")),
+    "Pony": beast("pony", 320, rgb("#a8845a"), muzzle=rgb("#7a5a3e"), mane=rgb("#e6dcc4"), tail_c=rgb("#e6dcc4")),
+    "Black Goat": beast("goat", 220, rgb("#3a3436"), muzzle=rgb("#5a5254"), horn=rgb("#8a7a6a")),
+    "Brown Sheep": beast("sheep", 220, rgb("#a88a6a"), ear_c=rgb("#3a3430")),
     "Turkey": bird_obj(150, body=rgb("#5a4a3e"), wing=rgb("#7a5a3e"), tail=rgb("#8a6a4a"), head_c=rgb("#c8a0a0"), comb=rgb("#c8443a")),
     "Rat": rat,
     "Frog": frog,
