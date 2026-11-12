@@ -8,7 +8,7 @@ import math
 import skia
 
 from floors import split
-from pen import DETAIL, FINE, INK, Art, chaikin, ellipse, mix, rect, rgb, shade, tint, vary
+from pen import DETAIL, FINE, INK, JOINT, JOINT_ALPHA, Art, grout, joint_color, chaikin, ellipse, mix, rect, rgb, shade, tint, vary
 from tex_build import BRASS, DOOR, FRAME, IRON, SW, T, dot, jambs, leaf, swing
 
 STONE = rgb("#a39d93")
@@ -60,7 +60,7 @@ def slab(a, x0, x1, h, color, style="plank", thick=16, studs=False, trim=None):
             n = max(2, int((x1 - x0) / 26))
             for k in range(1, n):
                 x = x0 + (x1 - x0) * k / n
-                art.ink([(x, y0 + 1), (x, y1 - 1)], FINE * 1.2, color=shade(color, 0.5), alpha=0.85, taper=False)
+                art.ink([(x, y0 + 1), (x, y1 - 1)], JOINT, color=joint_color(color), alpha=JOINT_ALPHA, taper=False)
         elif style == "panel":
             n = max(2, int((x1 - x0) / 54))
             for k in range(n):
@@ -76,7 +76,7 @@ def slab(a, x0, x1, h, color, style="plank", thick=16, studs=False, trim=None):
                 art.ink(ellipse(x, h / 2, 6, 3.5, 16), FINE, closed=True, color=shade(color, 0.45), alpha=0.85)
         elif style == "stone":
             for x in range(int(x0) + 22, int(x1) - 10, 28):
-                art.ink([(x, y0 + 1), (x + 3, y1 - 1)], FINE * 1.2, color=shade(color, 0.5), alpha=0.8)
+                art.ink([(x, y0 + 1), (x + 3, y1 - 1)], JOINT, color=joint_color(color), alpha=JOINT_ALPHA)
         elif style == "rivets":
             for x in range(int(x0) + 10, int(x1) - 6, 14):
                 for y in (y0 + 4, y1 - 4):
@@ -184,11 +184,11 @@ def sliding(seed, color, open_=0.0, w=SW, h=96, track=IRON):
         span = w - 48
         x0 = 24 + span * 0.5 * open_
         x1 = x0 + span / 2
-        a.shape(rect(x0, h / 2 - 12, x1, h / 2 + 12), color, outline=DETAIL * 1.4, corner=3, depth=3, light_k=0.4, detail=lambda art, p: [art.ink([(x, h / 2 - 11), (x, h / 2 + 11)], FINE * 1.2, color=shade(color, 0.5), alpha=0.85, taper=False) for x in range(int(x0) + 26, int(x1) - 6, 26)])
+        a.shape(rect(x0, h / 2 - 12, x1, h / 2 + 12), color, outline=DETAIL * 1.4, corner=3, depth=3, light_k=0.4, detail=lambda art, p: [art.ink([(x, h / 2 - 11), (x, h / 2 + 11)], JOINT, color=joint_color(color), alpha=JOINT_ALPHA, taper=False) for x in range(int(x0) + 26, int(x1) - 6, 26)])
         a.ink([(x0 + 8, h / 2 - 10), (x1 - 8, h / 2 + 10)], DETAIL * 1.2, color=shade(color, 0.45))
         x2 = 24 + span / 2 + (span / 2) * (0.5 * open_) if open_ else 24 + span / 2
         if open_ < 1:
-            a.shape(rect(24 + span / 2 + 2, h / 2 - 12, w - 24, h / 2 + 12), color, outline=DETAIL * 1.4, corner=3, depth=3, light_k=0.4, detail=lambda art, p: [art.ink([(x, h / 2 - 11), (x, h / 2 + 11)], FINE * 1.2, color=shade(color, 0.5), alpha=0.85, taper=False) for x in range(int(24 + span / 2) + 26, int(w - 24) - 6, 26)]) if open_ == 0 else None
+            a.shape(rect(24 + span / 2 + 2, h / 2 - 12, w - 24, h / 2 + 12), color, outline=DETAIL * 1.4, corner=3, depth=3, light_k=0.4, detail=lambda art, p: [art.ink([(x, h / 2 - 11), (x, h / 2 + 11)], JOINT, color=joint_color(color), alpha=JOINT_ALPHA, taper=False) for x in range(int(24 + span / 2) + 26, int(w - 24) - 6, 26)]) if open_ == 0 else None
         for x in (x0 + 14, x1 - 14):
             a.shape(ellipse(x, h / 2 - 20, 6, 6, 16), track, outline=FINE * 1.3, depth=1, mottle=0)
         del x2
@@ -381,12 +381,16 @@ def stone_secret(seed, color=STONE, pivot=False):
             a.shape(pts, tint(color, 0.05), outline=DETAIL * 1.4, corner=4, depth=4, light_k=0.4)
             dot(a, cx, cy, 4, shade(color, 0.5))
             return a.image()
+        # One stretch of wall (inked body, thin joints between its blocks)
+        # with the hidden door's seams a little darker.
+        a.shape(rect(1, 7, w - 1, h - 7), grout(color), outline=DETAIL * 1.4, corner=4, depth=2, shade_k=0.2, light_k=0, ao=0.1, mottle=0)
         x = 0.0
         for wdt in split(w, a.rng, 40, 64):
-            a.shape(rect(x + 2, 8, x + wdt - 2, h - 8), vary(a.rng, color, 0.05), outline=DETAIL * 1.3, corner=6, depth=4)
+            c = vary(a.rng, color, 0.045)
+            a.shape(rect(max(x, 3) + 0.9, 9, min(x + wdt, w - 3) - 0.9, h - 9), c, outline=JOINT, outline_color=joint_color(c), outline_alpha=JOINT_ALPHA, corner=2, wob=0.3, depth=3, shade_k=0.35, light_k=0.25, ao=0.1)
             x += wdt
-        a.ink([(36, 10), (36, h - 10)], DETAIL * 1.4, color=shade(color, 0.5), alpha=0.9)
-        a.ink([(w - 36, 10), (w - 36, h - 10)], DETAIL * 1.4, color=shade(color, 0.5), alpha=0.9)
+        a.ink([(36, 10), (36, h - 10)], DETAIL, color=shade(color, 0.5), alpha=0.8)
+        a.ink([(w - 36, 10), (w - 36, h - 10)], DETAIL, color=shade(color, 0.5), alpha=0.8)
         a.shape(ellipse(w - 50, h / 2, 6, 6, 16), shade(color, 0.25), outline=FINE * 1.2, depth=1, mottle=0)
         return a.image()
 
@@ -401,7 +405,7 @@ def arch2(seed, color, w=T, h=84, kind="voussoir", broken=False):
         a = Art(w, h, seed)
         pw = 32 if w <= T else 40
         for x0 in (2, w - pw - 2):
-            a.shape(rect(x0, 6, x0 + pw, h - 6), color, outline=DETAIL * 1.4, corner=6, depth=5, light_k=0.4, detail=(lambda art, p, x0=x0: [art.ink([(x0 + 3, y), (x0 + pw - 3, y)], FINE * 1.1, color=shade(color, 0.45), alpha=0.8, taper=False) for y in range(18, h - 8, 16)]) if kind == "brick" else None)
+            a.shape(rect(x0, 6, x0 + pw, h - 6), color, outline=DETAIL * 1.4, corner=6, depth=5, light_k=0.4, detail=(lambda art, p, x0=x0: [art.ink([(x0 + 3, y), (x0 + pw - 3, y)], JOINT, color=joint_color(color), alpha=JOINT_ALPHA, taper=False) for y in range(18, h - 8, 16)]) if kind == "brick" else None)
         if broken:
             x_end = w * 0.55
             a.shape([(pw, h / 2 - 11), (x_end, h / 2 - 11), (x_end - 10, h / 2 - 2), (x_end + 6, h / 2 + 4), (x_end - 6, h / 2 + 11), (pw, h / 2 + 11)], tint(color, 0.08), outline=DETAIL * 1.2, corner=2, depth=3)
@@ -414,14 +418,15 @@ def arch2(seed, color, w=T, h=84, kind="voussoir", broken=False):
         def courses(art, p):
             if kind == "voussoir":
                 for x in range(pw + 18, w - pw, 22):
-                    art.ink([(x, h / 2 - 11), (x, h / 2 + 11)], FINE * 1.2, color=shade(color, 0.45), alpha=0.8, taper=False)
+                    art.ink([(x, h / 2 - 11), (x, h / 2 + 11)], JOINT, color=joint_color(color), alpha=JOINT_ALPHA, taper=False)
             elif kind == "brick":
                 for x in range(pw + 12, w - pw, 14):
-                    art.ink([(x, h / 2 - 11), (x, h / 2 + 11)], FINE * 1.1, color=shade(color, 0.5), alpha=0.8, taper=False)
-                art.ink([(pw, h / 2), (w - pw, h / 2)], FINE, color=shade(color, 0.5), alpha=0.7, taper=False)
+                    art.ink([(x + 7 * ((x // 14) % 2), h / 2 - 11), (x + 7 * ((x // 14) % 2), h / 2)], JOINT, color=joint_color(color), alpha=JOINT_ALPHA, taper=False)
+                    art.ink([(x + 7 * (1 - (x // 14) % 2), h / 2), (x + 7 * (1 - (x // 14) % 2), h / 2 + 11)], JOINT, color=joint_color(color), alpha=JOINT_ALPHA, taper=False)
+                art.ink([(pw, h / 2), (w - pw, h / 2)], JOINT, color=joint_color(color), alpha=JOINT_ALPHA, taper=False)
             elif kind == "wood":
-                art.ink([(pw, h / 2 - 4), (w - pw, h / 2 - 3)], FINE * 1.1, color=shade(color, 0.5), alpha=0.75)
-                art.ink([(pw, h / 2 + 4), (w - pw, h / 2 + 5)], FINE * 1.1, color=shade(color, 0.5), alpha=0.75)
+                art.ink([(pw, h / 2 - 4), (w - pw, h / 2 - 3)], JOINT, color=joint_color(color), alpha=JOINT_ALPHA)
+                art.ink([(pw, h / 2 + 4), (w - pw, h / 2 + 5)], JOINT, color=joint_color(color), alpha=JOINT_ALPHA)
 
         a.shape(rect(pw, h / 2 - 11, w - pw, h / 2 + 11), tint(color, 0.08), outline=DETAIL * 1.2, corner=3, depth=3, detail=courses)
         if kind == "pointed":

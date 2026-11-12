@@ -7,7 +7,7 @@ import math
 from PIL import Image
 
 from floors import speckles, split
-from pen import DETAIL, FINE, INK, OUTLINE, Art, blob, chaikin, ellipse, mix, rect, rgb, shade, tint, to_path, vary
+from pen import DETAIL, FINE, INK, JOINT, JOINT_ALPHA, OUTLINE, Art, grout, joint_color, blob, chaikin, ellipse, mix, rect, rgb, shade, tint, to_path, vary
 from tex_build import SW, T, band, dot, end_block, rock_wall, strip, wall_blocks
 
 
@@ -36,12 +36,13 @@ def bricks(seed, color, mortar=rgb("#d9cbb2"), rows=3, lo=36, hi=46, h=60):
 
 
 def stack_bricks(seed, color, mortar=rgb("#d9cbb2"), h=60, bw=40):
-    """Stack bond: bricks lined up in columns (no stagger)."""
+    """Stack bond: bricks lined up in columns (no stagger), on one solid wall
+    body inked only along its long edges (same build as wall_blocks)."""
 
     def make():
         a = strip(seed, h)
         pad = 5
-        band(a, pad, h - pad, mortar, outline=DETAIL * 1.2, light_k=0, shade_k=0.2)
+        band(a, pad, h - pad, grout(color, mortar), outline=0, light_k=0, shade_k=0.15)
         rows = 3
         rh = (h - 2 * pad) / rows
         n = int(SW // bw)
@@ -50,7 +51,12 @@ def stack_bricks(seed, color, mortar=rgb("#d9cbb2"), h=60, bw=40):
             for k in range(n):
                 x = k * cw
                 y0, y1 = pad + r * rh, pad + (r + 1) * rh
-                a.shape(rect(x + 2.5, y0 + 2.5, x + cw - 2.5, y1 - 2.5), vary(a.rng, color, 0.05), outline=DETAIL * 1.2, corner=3, wob=0.5, depth=4, shade_k=0.5, light_k=0.35, ao=0.2, var=0.1)
+                c = vary(a.rng, color, 0.045)
+                a.shape(rect(x + 0.9, y0 + 0.9, x + cw - 0.9, y1 - 0.9), c, outline=JOINT, outline_color=joint_color(c), outline_alpha=JOINT_ALPHA, corner=2, wob=0.25, depth=3, shade_k=0.35, light_k=0.25, ao=0.1, var=0.1)
+        a.tile = False
+        for y in (pad, h - pad):
+            a.ink([(-60, y), (a.w + 60, y)], OUTLINE * 0.75, taper=False, wob=0.4, var=0.1)
+        a.tile = True
         return a.image(), end_block(seed + 1, color, h)
 
     return make
@@ -181,10 +187,10 @@ def planks(seed, color, h=56, vertical=True, battens=False):
             if vertical:
                 x = 0.0
                 for wd in split(SW, art.rng, 26, 40):
-                    art.ink([(x, 6), (x, h - 6)], DETAIL * 0.9, color=shade(color, 0.5), alpha=0.9, taper=False, wob=0.2)
+                    art.ink([(x, 6), (x, h - 6)], JOINT * 1.3, color=joint_color(color), alpha=JOINT_ALPHA, taper=False, wob=0.2)
                     x += wd
             else:
-                art.ink([(-10, h / 2), (SW + 10, h / 2)], DETAIL * 0.9, color=shade(color, 0.5), alpha=0.9, taper=False, wob=0, var=0.0)
+                art.ink([(-10, h / 2), (SW + 10, h / 2)], JOINT * 1.3, color=joint_color(color), alpha=JOINT_ALPHA, taper=False, wob=0, var=0.0)
             for _ in range(24):
                 x, y = art.rng.uniform(0, SW), art.rng.uniform(10, h - 10)
                 art.ink([(x, y), (x + art.rng.uniform(12, 30), y + art.rng.uniform(-1, 1))], FINE * 0.8, color=shade(color, 0.45), alpha=0.6)
@@ -498,7 +504,7 @@ def metal_plates(seed, color, h=52):
         def seams(art):
             x = 0.0
             for wd in split(SW, art.rng, 70, 110):
-                art.ink([(x, 6), (x, h - 6)], DETAIL, color=shade(color, 0.5), taper=False, wob=0)
+                art.ink([(x, 6), (x, h - 6)], JOINT * 1.4, color=joint_color(color), alpha=JOINT_ALPHA + 0.1, taper=False, wob=0)
                 for y in (12, h - 12):
                     for dx in (8, wd - 8):
                         dot(art, x + dx, y, 2.6, tint(color, 0.4))

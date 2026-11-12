@@ -9,7 +9,7 @@ import math
 import skia
 
 from floors import crack, inset, speckles, split, voronoi_cells
-from pen import DETAIL, FINE, INK, OUTLINE, Art, blob, chaikin, ellipse, mix, rect, rgb, shade, tint, to_path, vary
+from pen import DETAIL, FINE, INK, JOINT, JOINT_ALPHA, OUTLINE, Art, grout, joint_color, blob, chaikin, ellipse, mix, rect, rgb, shade, tint, to_path, vary
 
 T = 256
 SW = 2 * T  # strip width (repeats along x)
@@ -48,11 +48,13 @@ def dot(a, x, y, r, color=INK, alpha=1.0):
 
 
 def wall_blocks(seed, color, rows=2, lo=50, hi=90, h=64, mortar=None, corner=7, wob=1.0, cracks=0.3, ruined=False, veins=False):
-    """Masonry seen from above: courses of blocks (staggered), mortar between."""
+    """Masonry seen from above: one solid wall body (inked only along its two
+    long edges) cut into staggered courses by thin joints of the stone's own
+    darker tone, so it reads as a wall and not as loose blocks."""
     a = strip(seed, h)
     pad = 5
-    if mortar:
-        band(a, pad, h - pad, mortar, outline=DETAIL * 1.2, light_k=0, shade_k=0.2)
+    if not ruined:
+        band(a, pad, h - pad, grout(color, mortar), outline=0, light_k=0, shade_k=0.15)
     rh = (h - 2 * pad) / rows
     for r in range(rows):
         x = a.rng.uniform(0, SW)
@@ -61,8 +63,8 @@ def wall_blocks(seed, color, rows=2, lo=50, hi=90, h=64, mortar=None, corner=7, 
             if ruined and a.rng.random() < 0.22:
                 x += wdt
                 continue
-            c = vary(a.rng, color, 0.05)
-            g = 2.5
+            c = vary(a.rng, color, 0.045)
+            g = 0.9
             pts = rect(x + g, y0 + g, x + wdt - g, y1 - g)
             if ruined:
                 pts = [(px + a.rng.uniform(-3, 3), py + a.rng.uniform(-2, 2)) for px, py in pts]
@@ -74,8 +76,18 @@ def wall_blocks(seed, color, rows=2, lo=50, hi=90, h=64, mortar=None, corner=7, 
                 if veins:
                     art.ink(chaikin([(x + 6, y0 + 6), (x + wdt * 0.4, (y0 + y1) / 2), (x + wdt - 6, y1 - 6)], False, 2), FINE * 0.8, color=shade(c, 0.3), alpha=0.6)
 
-            a.shape(pts, c, outline=DETAIL * 1.3, corner=corner, wob=wob, depth=5, shade_k=0.5, light_k=0.35, ao=0.2, detail=detail, var=0.1)
+            if ruined:
+                # Ruins are loose blocks: each keeps its own ink outline.
+                a.shape(pts, c, outline=DETAIL * 1.1, corner=corner, wob=wob, depth=5, shade_k=0.5, light_k=0.35, ao=0.2, detail=detail, var=0.1)
+                x += wdt
+                continue
+            a.shape(pts, c, outline=JOINT, outline_color=joint_color(c), outline_alpha=JOINT_ALPHA, corner=min(corner, 3), wob=wob * 0.5, depth=3, shade_k=0.35, light_k=0.25, ao=0.1, detail=detail, var=0.1)
             x += wdt
+    if not ruined:
+        a.tile = False
+        for y in (pad, h - pad):
+            a.ink([(-60, y), (a.w + 60, y)], OUTLINE * 0.75, taper=False, wob=0.4, var=0.1)
+        a.tile = True
     if ruined:
         for _ in range(10):
             x, y = a.rng.uniform(0, SW), a.rng.uniform(10, h - 10)
@@ -231,15 +243,40 @@ def iron_fence(seed=1306):
 
 
 def rock_wall(seed, color=rgb("#9a958c"), h=68, jag=0.25):
+    """Fieldstone/rubble: irregular stones packed into one wall. The stones
+    share a mortar body whose silhouette carries the ink; between stones only
+    thin joints of their own darker tone."""
+
     def make():
         a = strip(seed, h)
+        stones = []
         x = 0.0
         while x < SW:
             bw = a.rng.uniform(26, 46)
             pts = blob(x + bw / 2, h / 2, bw / 2 + 4, a.rng, 9, jag, ry=h / 2 - 6)
-            pts = [(px, min(h - 5, max(5, py))) for px, py in pts]
-            a.shape(pts, vary(a.rng, color, 0.07), outline=DETAIL * 1.3, corner=4, depth=5, shade_k=0.55, light_k=0.3, var=0.1, detail=lambda art, p: speckles(art, p, shade(color, 0.45), 4))
+            stones.append([(px, min(h - 5, max(5, py))) for px, py in pts])
             x += bw * 0.82
+        # The body: union of the stones and their copies one strip-length
+        # away, cut to the strip, drawn without tiled copies so its outline
+        # has no seams at the ends.
+        body = skia.Path()
+        for pts in stones:
+            for dx in (-SW, 0, SW):
+                q = [(px + dx, py) for px, py in pts]
+                if max(px for px, _ in q) < -20 or min(px for px, _ in q) > SW + 20:
+                    continue
+                pq = to_path(chaikin(q, True, 2))
+                body = skia.Op(body, pq, skia.kUnion_PathOp) if not body.isEmpty() else pq
+        body = skia.Op(body, to_path(rect(-12, -10, SW + 12, h + 10)), skia.kIntersect_PathOp)
+        a.tile = False
+        a.fill_path(body, grout(color))
+        a.tile = True
+        for pts in stones:
+            c = vary(a.rng, color, 0.07)
+            a.shape([(px + a.rng.uniform(-0.5, 0.5), py) for px, py in pts], c, outline=JOINT * 1.2, outline_color=joint_color(c), outline_alpha=JOINT_ALPHA, corner=4, depth=4, shade_k=0.4, light_k=0.25, ao=0.12, var=0.1, detail=lambda art, p, c=c: speckles(art, p, shade(c, 0.45), 4))
+        a.tile = False
+        a.stroke_path(body, INK, OUTLINE * 0.75)
+        a.tile = True
         cap = Art(h, h, seed + 1)
         cap.shape(blob(h / 2, h / 2, h / 2 - 7, cap.rng, 8, 0.18), color, outline=OUTLINE * 0.8, smooth=False, corner=5, depth=6)
         return a.image(), cap.image()
@@ -357,7 +394,7 @@ def leaf(a, x0, x1, h, color=DOOR, bands=True, handle_at=None, thick=16, studs=F
         n = max(2, int((x1 - x0) / 28))
         for k in range(1, n):
             x = x0 + (x1 - x0) * k / n
-            art.ink([(x, y0 + 1), (x, y1 - 1)], FINE * 1.2, color=shade(color, 0.5), alpha=0.85, taper=False)
+            art.ink([(x, y0 + 1), (x, y1 - 1)], JOINT, color=joint_color(color), alpha=JOINT_ALPHA, taper=False)
 
     a.shape(rect(x0, y0, x1, y1), color, outline=DETAIL * 1.4, corner=3, depth=3, light_k=0.4, detail=planks)
     if bands:
@@ -467,13 +504,17 @@ def secret_door(seed=1406):
     def make():
         a = Art(w, h, seed)
         stone = rgb("#a39d93")
+        # One stretch of wall: a mortar body with the ink outline, blocks
+        # inside it separated by thin joints.
+        a.shape(rect(1, 7, w - 1, h - 7), grout(stone), outline=DETAIL * 1.4, corner=4, depth=2, shade_k=0.2, light_k=0, ao=0.1, mottle=0)
         x = 0.0
         for wdt in split(w, a.rng, 44, 70):
-            a.shape(rect(x + 2, 8, x + wdt - 2, h - 8), vary(a.rng, stone, 0.05), outline=DETAIL * 1.3, corner=6, depth=4)
+            c = vary(a.rng, stone, 0.045)
+            a.shape(rect(max(x, 3) + 0.9, 9, min(x + wdt, w - 3) - 0.9, h - 9), c, outline=JOINT, outline_color=joint_color(c), outline_alpha=JOINT_ALPHA, corner=2, wob=0.3, depth=3, shade_k=0.35, light_k=0.25, ao=0.1)
             x += wdt
         # The seams of the hidden door, a little darker, and a hidden catch.
-        a.ink([(40, 10), (40, h - 10)], DETAIL * 1.4, color=shade(stone, 0.5), alpha=0.9)
-        a.ink([(w - 40, 10), (w - 40, h - 10)], DETAIL * 1.4, color=shade(stone, 0.5), alpha=0.9)
+        a.ink([(40, 10), (40, h - 10)], DETAIL, color=shade(stone, 0.5), alpha=0.8)
+        a.ink([(w - 40, 10), (w - 40, h - 10)], DETAIL, color=shade(stone, 0.5), alpha=0.8)
         dot(a, w - 52, h / 2, 4, shade(stone, 0.5))
         return a.image()
 
@@ -486,7 +527,7 @@ def arch(seed=1407, color=rgb("#a39d93"), w=T, h=80, keystone=True):
         for x0 in (2, w - 32):
             a.shape(rect(x0, 6, x0 + 30, h - 6), color, outline=DETAIL * 1.4, corner=6, depth=5, light_k=0.4)
         # The arch's voussoirs over the opening, seen from above as a band.
-        a.shape(rect(30, h / 2 - 10, w - 30, h / 2 + 10), tint(color, 0.08), outline=DETAIL * 1.2, corner=4, depth=3, detail=lambda art, p: [art.ink([(x, h / 2 - 10), (x, h / 2 + 10)], FINE * 1.2, color=shade(color, 0.45), alpha=0.8, taper=False) for x in range(48, w - 30, 22)])
+        a.shape(rect(30, h / 2 - 10, w - 30, h / 2 + 10), tint(color, 0.08), outline=DETAIL * 1.2, corner=4, depth=3, detail=lambda art, p: [art.ink([(x, h / 2 - 10), (x, h / 2 + 10)], JOINT, color=joint_color(color), alpha=JOINT_ALPHA, taper=False) for x in range(48, w - 30, 22)])
         if keystone:
             a.shape(rect(w / 2 - 10, h / 2 - 14, w / 2 + 10, h / 2 + 14), tint(color, 0.15), outline=DETAIL * 1.2, corner=2, depth=2)
         return a.image()
