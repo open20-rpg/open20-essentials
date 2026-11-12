@@ -416,3 +416,218 @@ STONE_OBJECTS = {
 }
 
 STONE_COLORABLE = {"Altar"}
+
+
+# -- fountains -------------------------------------------------------------------------------------
+
+WATER = rgb("#6aa0b6")
+FOAM = rgb("#e4f2f6")
+
+
+def water(a, pts, cx, cy, rings=(0.45, 0.7, 0.9), r0=None, smooth=False):
+    """Water in a basin: deep at the rim (shadow), ripple arcs around the
+    spout at (cx, cy) and a few glints."""
+    from pen import to_path
+
+    path = to_path(chaikin(pts, True, 2) if smooth else pts)
+    b = path.getBounds()
+    R = r0 or min(b.width(), b.height()) / 2
+
+    def ripples(art, p):
+        for f in rings:
+            r = R * f
+            for _ in range(3):
+                t0 = art.rng.uniform(0, 6.28)
+                arc = [(cx + r * math.cos(t0 + j * 0.07), cy + r * math.sin(t0 + j * 0.07)) for j in range(10)]
+                art.ink(arc, FINE * 1.3, color=FOAM, alpha=0.85)
+        for _ in range(4):
+            x, y = art.rng.uniform(b.left(), b.right()), art.rng.uniform(b.top(), b.bottom())
+            if p.contains(x, y):
+                art.ink([(x, y), (x + 10, y - 2)], FINE * 1.2, color=FOAM, alpha=0.7)
+
+    return a.shape(pts, WATER, outline=DETAIL * 1.2, corner=6, smooth=smooth, depth=R * 0.14, shade_k=0, light_k=0, ao=0.6, detail=ripples)
+
+
+def spout(a, x, y, r=12):
+    """A splash where water falls: white foam ring and drops."""
+    a.shape(scallop(x, y, r * 1.6, a.rng, 9, 0.2), tint(WATER, 0.45), outline=0, depth=1, shade_k=0, light_k=0, ao=0, mottle=0)
+    a.shape(scallop(x, y, r, a.rng, 8, 0.25), FOAM, outline=FINE * 1.2, depth=1, shade_k=0, light_k=0, ao=0, mottle=0)
+    for _ in range(6):
+        t, d = a.rng.uniform(0, 6.28), a.rng.uniform(r * 1.8, r * 2.6)
+        dot(a, x + d * math.cos(t), y + d * math.sin(t), 2.2, FOAM, 0.9)
+
+
+def round_fountain(seed=231):
+    s = 360
+    a = Art(s, s, seed)
+    m = s / 2
+    stone_block(a, ellipse(m, m, 168, 168, 96), GREY, cracks=1, depth=14)
+    a.ink(ellipse(m, m, 150, 150, 96), FINE * 1.3, closed=True, color=shade(GREY, 0.45), alpha=0.7)
+    water(a, ellipse(m, m, 138, 138, 96), m, m)
+    stone_block(a, ellipse(m, m, 30, 30, 40), LIGHT_STONE, outline=DETAIL * 1.3, cracks=0, light_k=0.5)
+    spout(a, m, m, 9)
+    return a.image()
+
+
+def square_fountain(seed=232):
+    s = 360
+    a = Art(s, s, seed)
+    m = s / 2
+    stone_block(a, rect(12, 12, s - 12, s - 12), GREY, corner=10, cracks=2, depth=14)
+    for x, y in ((40, 40), (s - 40, 40), (40, s - 40), (s - 40, s - 40)):
+        stone_block(a, rect(x - 22, y - 22, x + 22, y + 22), LIGHT_STONE, outline=DETAIL * 1.2, corner=4, cracks=0, light_k=0.5)
+    water(a, rect(46, 46, s - 46, s - 46), m, m)
+    stone_block(a, rect(m - 26, m - 26, m + 26, m + 26), LIGHT_STONE, outline=DETAIL * 1.3, corner=6, cracks=0, light_k=0.5)
+    spout(a, m, m, 8)
+    return a.image()
+
+
+def tiered_fountain(seed=233):
+    s = 380
+    a = Art(s, s, seed)
+    m = s / 2
+    stone_block(a, ellipse(m, m, 178, 178, 96), GREY, cracks=1, depth=14)
+    water(a, ellipse(m, m, 152, 152, 96), m, m, rings=(0.75, 0.92))
+    # Middle and top bowls, each overflowing into the one below.
+    for r, rim in ((84, 72), (44, 34)):
+        stone_block(a, ellipse(m, m, r, r, 80), LIGHT_STONE, outline=DETAIL * 1.4, cracks=0, light_k=0.5, depth=8)
+        a.shape(scallop(m, m, r + 6, a.rng, 16, 0.08), FOAM, outline=0, depth=1, shade_k=0, light_k=0, ao=0, mottle=0) if False else None
+        water(a, ellipse(m, m, rim, rim, 72), m, m, rings=(0.6,))
+    spout(a, m, m, 8)
+    # Water spilling over the middle bowl's rim.
+    for i in range(10):
+        t = 2 * math.pi * i / 10 + 0.2
+        a.ink([(m + 86 * math.cos(t), m + 86 * math.sin(t)), (m + 100 * math.cos(t), m + 100 * math.sin(t))], DETAIL, color=FOAM, alpha=0.9)
+    return a.image()
+
+
+def wall_fountain(seed=234):
+    w, h = 340, 220
+    a = Art(w, h, seed)
+    cx = w / 2
+    # The wall's stretch at the top, a spout on it, the half basin below.
+    stone_block(a, rect(6, 6, w - 6, 46), DARK_STONE, corner=4, cracks=1)
+    half = [(cx + 150 * math.cos(t), 40 + 160 * math.sin(t)) for t in [math.pi * i / 40 for i in range(41)]]
+    stone_block(a, half, GREY, corner=0, cracks=1, depth=12)
+    inner = [(cx + 124 * math.cos(t), 46 + 136 * math.sin(t)) for t in [math.pi * i / 40 for i in range(41)]]
+    water(a, inner, cx, 60, rings=(0.4, 0.7))
+    stone_block(a, ellipse(cx, 34, 26, 22, 32), LIGHT_STONE, outline=DETAIL * 1.3, cracks=0, light_k=0.5)
+    a.shape(rect(cx - 6, 40, cx + 6, 66), FOAM, outline=FINE * 1.2, corner=3, depth=1, shade_k=0, light_k=0, ao=0, mottle=0)
+    spout(a, cx, 72, 8)
+    return a.image()
+
+
+def quatrefoil_fountain(seed=235):
+    s = 380
+    a = Art(s, s, seed)
+    m = s / 2
+
+    def foil(r, lobe):
+        from objects import lobed
+
+        return lobed(m, m, r * 0.5, [(m + r * 0.78 * math.cos(t), m + r * 0.78 * math.sin(t), lobe) for t in [math.pi / 2 * i + math.pi / 4 for i in range(4)]])
+
+    stone_block(a, foil(140, 84), GREY, corner=0, cracks=2, depth=14)
+    water(a, foil(140, 60), m, m)
+    stone_block(a, ellipse(m, m, 34, 34, 40), LIGHT_STONE, outline=DETAIL * 1.3, cracks=0, light_k=0.5)
+    spout(a, m, m, 9)
+    return a.image()
+
+
+def statue_fountain(seed=236):
+    s = 380
+    a = Art(s, s, seed)
+    m = s / 2
+    octa = [(m + 178 * math.cos(t), m + 178 * math.sin(t)) for t in [math.pi / 8 + math.pi / 4 * i for i in range(8)]]
+    stone_block(a, octa, GREY, corner=8, cracks=1, depth=14)
+    inner = [(m + 150 * math.cos(t), m + 150 * math.sin(t)) for t in [math.pi / 8 + math.pi / 4 * i for i in range(8)]]
+    water(a, inner, m, m, rings=(0.62, 0.85))
+    stone_block(a, ellipse(m, m, 62, 62, 64), LIGHT_STONE, outline=DETAIL * 1.4, cracks=0, light_k=0.4)
+    # A maiden pouring from a jar: robe, head, the jar at her side.
+    a.shape(ellipse(m, m + 6, 36, 30, 40), MARBLE, outline=DETAIL * 1.3, depth=6, light_k=0.4)
+    a.shape(ellipse(m, m - 8, 18, 18, 28), tint(MARBLE, 0.15), outline=DETAIL * 1.2, depth=4, light_k=0.5)
+    a.shape(ellipse(m + 40, m + 20, 16, 14, 24), tint(MARBLE, 0.05), outline=DETAIL * 1.2, depth=3, light_k=0.4)
+    a.ink([(m + 52, m + 30), (m + 80, m + 56)], DETAIL * 1.6, color=FOAM)
+    spout(a, m + 86, m + 64, 9)
+    return a.image()
+
+
+def dry_fountain(seed=237):
+    s = 360
+    a = Art(s, s, seed)
+    m = s / 2
+    rim = [(m + 168 * math.cos(t) * a.rng.uniform(0.97, 1.0), m + 168 * math.sin(t) * a.rng.uniform(0.97, 1.0)) for t in [2 * math.pi * i / 48 for i in range(48)]]
+    stone_block(a, rim, GREY, corner=0, cracks=3, depth=14)
+    dirt = rgb("#8f8270")
+
+    def debris(art, path):
+        for _ in range(5):
+            crack(art, art.rng.uniform(80, 280), art.rng.uniform(80, 280), art.rng.uniform(0, 6.28), 70)
+        for _ in range(4):
+            art.shape(blob(art.rng.uniform(90, 270), art.rng.uniform(90, 270), art.rng.uniform(10, 18), art.rng, 7, 0.2), MOSS, outline=0, smooth=True, depth=2, shade_k=0.3, light_k=0.2, ao=0, mottle=0.1)
+
+    a.shape(ellipse(m, m, 140, 140, 96), dirt, outline=DETAIL * 1.2, depth=18, shade_k=0, light_k=0, ao=0.6, detail=debris)
+    # A broken spout pillar, its top piece fallen in the basin.
+    stone_block(a, [(m - 28, m - 10), (m - 20, m - 30), (m + 8, m - 26), (m + 26, m - 8), (m + 20, m + 22), (m - 24, m + 20)], LIGHT_STONE, outline=DETAIL * 1.3, cracks=1, light_k=0.4)
+    piece = [(m + 60, m + 50), (m + 106, m + 60), (m + 98, m + 92), (m + 54, m + 84)]
+    soft_shadow(a, piece)
+    stone_block(a, piece, LIGHT_STONE, outline=DETAIL * 1.3, cracks=0)
+    # A chunk missing from the rim.
+    a.shape([(m + 120, m - 100), (m + 150, m - 70), (m + 128, m - 56)], dirt, outline=DETAIL, corner=2, depth=2, mottle=0)
+    return a.image()
+
+
+def birdbath(seed=238):
+    s = 200
+    a = Art(s, s, seed)
+    m = s / 2
+    stone_block(a, ellipse(m, m, 84, 84, 72), LIGHT_STONE, cracks=1, light_k=0.45, depth=10)
+    water(a, ellipse(m, m, 62, 62, 64), m, m, rings=(0.5,))
+    # A little bird perched on the rim.
+    bird = rgb("#8a6a52")
+    a.shape(ellipse(m + 46, m - 44, 14, 10, 24, rot=-0.7), bird, outline=DETAIL * 1.1, depth=3, light_k=0.4, mottle=0)
+    a.shape(ellipse(m + 54, m - 54, 7, 7, 16), shade(bird, 0.1), outline=FINE * 1.2, depth=2, mottle=0)
+    a.ink([(m + 58, m - 60), (m + 64, m - 66)], FINE * 1.6, color=rgb("#e0a640"))
+    return a.image()
+
+
+def garden_pool(seed=239):
+    w, h = 440, 340
+    a = Art(w, h, seed)
+    cx, cy = w / 2, h / 2
+    pool = blob(cx, cy, 170, a.rng, 12, 0.1, ry=120)
+    water(a, pool, cx - 30, cy, rings=(0.3, 0.55), r0=150, smooth=True)
+    # Lily pads and a flower.
+    for _ in range(5):
+        x, y = cx + a.rng.uniform(-110, 110), cy + a.rng.uniform(-60, 60)
+        r = a.rng.uniform(14, 22)
+        t = a.rng.uniform(0, 6.28)
+        pad = [(x, y)] + [(x + r * math.cos(t + 0.35 + k * 0.2), y + r * math.sin(t + 0.35 + k * 0.2)) for k in range(29)]
+        a.shape(pad, rgb("#6d9a48"), outline=DETAIL, corner=0, depth=2, light_k=0.4, mottle=0)
+    a.shape(scallop(cx + 50, cy - 20, 10, a.rng, 6, 0.3), rgb("#f2c2d2"), outline=FINE * 1.3, depth=2, mottle=0)
+    dot(a, cx + 50, cy - 20, 3, rgb("#f6d24a"))
+    # Ring of edge stones.
+    from pen import resample
+
+    edge = resample(chaikin(pool, True, 2), True, 30)
+    for px, py in edge:
+        dx, dy = px - cx, py - cy
+        L = math.hypot(dx, dy) or 1
+        x, y = px + dx / L * 12, py + dy / L * 12
+        stone_block(a, blob(x, y, a.rng.uniform(17, 24), a.rng, 8, 0.15), vary(a.rng, GREY, 0.07), outline=DETAIL * 1.3, smooth=True, cracks=0)
+    spout(a, cx - 30, cy, 8)
+    return a.image()
+
+
+FOUNTAINS = {
+    "Round Fountain": round_fountain,
+    "Square Fountain": square_fountain,
+    "Tiered Fountain": tiered_fountain,
+    "Wall Fountain": wall_fountain,
+    "Quatrefoil Fountain": quatrefoil_fountain,
+    "Statue Fountain": statue_fountain,
+    "Dry Fountain": dry_fountain,
+    "Birdbath": birdbath,
+    "Garden Pool": garden_pool,
+}
+STONE_OBJECTS.update(FOUNTAINS)
