@@ -259,7 +259,8 @@ def snow(img, seed, amount=0.5):
         for _ in range(int(16 * amount) + 4):
             x, y = a.rng.uniform(0, S), a.rng.uniform(0, S)
             pts = blob(x, y, a.rng.uniform(40, 90), a.rng, 10, 0.3, ry=a.rng.uniform(16, 34))
-            a.shape(chaikin(pts, True, 2), white, outline=DETAIL * 1.0, corner=0, wob=0.4, depth=4, shade_k=0.35, light_k=0.2, ao=0, mottle=0.02)
+            # Snow sits soft on the roof: a pale blue-grey edge, not an ink line.
+            a.shape(chaikin(pts, True, 2), white, outline=FINE * 1.1, outline_color=rgb("#aebccb"), outline_alpha=0.8, corner=0, wob=0.4, depth=4, shade_k=0.25, light_k=0.2, ao=0, mottle=0.02)
 
     return _overlay(img, seed, draw)
 
@@ -297,7 +298,7 @@ def snow_line(img, seed):
     pts = [(x, h * 0.45 + 3 * math.sin(2 * math.pi * x / SW * 5) + 2 * math.sin(2 * math.pi * x / SW * 11)) for x in range(-60, SW + 61, 8)]
     a.tile = False
     a.shape(pts + [(SW + 60, -5), (-60, -5)], rgb("#f2f4f6"), outline=0, corner=0, wob=0, depth=2, shade_k=0.3, light_k=0.2, ao=0, mottle=0)
-    a.ink(pts, DETAIL * 0.9, wob=0.2, taper=False)
+    a.ink(pts, FINE * 1.1, color=rgb("#aebccb"), alpha=0.8, wob=0.2, taper=False)
     a.tile = True
     out = img.copy()
     out.alpha_composite(a.image(grain=0))

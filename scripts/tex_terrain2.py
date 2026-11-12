@@ -124,7 +124,7 @@ def _ripples(a, s, col, n, amp=5, k=3, width=1.2, alpha=0.6):
         a.ink(pts, FINE * width, color=rgb(col), alpha=alpha, wob=0.3, taper=False)
 
 
-def ground(seed, base, blotch=(), extras=(), scale=72, lo=0.5, tint_k=0.08, nblotch=36, blotch_r=(22, 60)):
+def ground(seed, base, blotch=(), extras=(), scale=72, lo=0.5, tint_k=0.06, nblotch=36, blotch_r=(22, 60)):
     """A seamless terrain: flat base, soft blotches, then `extras`: a list
     of (fn, args) detail passes, each called as fn(art, size, *args)."""
     s = S2
@@ -132,7 +132,7 @@ def ground(seed, base, blotch=(), extras=(), scale=72, lo=0.5, tint_k=0.08, nblo
     if blotch:
         for _ in range(nblotch):
             x, y = a.rng.uniform(0, s), a.rng.uniform(0, s)
-            a.fill_path(to_path(blob(x, y, a.rng.uniform(*blotch_r), a.rng, 12, 0.3)), rgb(a.rng.choice(blotch)), 0.55)
+            a.fill_path(to_path(blob(x, y, a.rng.uniform(*blotch_r), a.rng, 12, 0.3)), rgb(a.rng.choice(blotch)), 0.22, blur=6)
     for fn, *args in extras:
         fn(a, s, *args)
     img = a.image()

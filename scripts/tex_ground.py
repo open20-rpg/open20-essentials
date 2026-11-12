@@ -223,7 +223,7 @@ def dirt_floor(seed=17):
     for _ in range(40):
         x, y = a.rng.uniform(0, s), a.rng.uniform(0, s)
         col = rgb("#86694c") if a.rng.random() < 0.5 else rgb("#9b8061")
-        a.fill_path(to_path(blob(x, y, a.rng.uniform(20, 50), a.rng, 12, 0.3)), col, 0.6)
+        a.fill_path(to_path(blob(x, y, a.rng.uniform(20, 50), a.rng, 12, 0.3)), col, 0.22, blur=6)
     for _ in range(60):
         x, y = a.rng.uniform(0, s), a.rng.uniform(0, s)
         a.shape(blob(x, y, a.rng.uniform(3, 6), a.rng, 8, 0.25), vary(a.rng, rgb("#9d9183"), 0.06), outline=1.4, corner=0, wob=0.2, depth=1.5, shade_k=0.4, light_k=0.4, ao=0, mottle=0)
@@ -240,7 +240,7 @@ def straw_floor(seed=18):
     a = Art(s, s, seed, tile=True, bg=base)
     for _ in range(30):
         x, y = a.rng.uniform(0, s), a.rng.uniform(0, s)
-        a.fill_path(to_path(blob(x, y, a.rng.uniform(30, 60), a.rng, 12, 0.3)), rgb("#b89c5c") if a.rng.random() < 0.5 else rgb("#d8bf80"), 0.6)
+        a.fill_path(to_path(blob(x, y, a.rng.uniform(30, 60), a.rng, 12, 0.3)), rgb("#b89c5c") if a.rng.random() < 0.5 else rgb("#d8bf80"), 0.22, blur=6)
     for _ in range(1300):
         x, y = a.rng.uniform(0, s), a.rng.uniform(0, s)
         t = a.rng.uniform(0, 6.28)
@@ -661,7 +661,7 @@ def with_height(img, field, lo=0.5):
     return Image.fromarray(a, "RGBA")
 
 
-def terrain(seed, base, blotch=(), strokes=None, stones=None, dots=None, leaves=None, flowers=None, ripples=None, cracks=0, scale=72, lo=0.5, tint_k=0.08):
+def terrain(seed, base, blotch=(), strokes=None, stones=None, dots=None, leaves=None, flowers=None, ripples=None, cracks=0, scale=72, lo=0.5, tint_k=0.06):
     """A seamless terrain: flat base, soft blotches, then optional details
     (grass strokes, stones, specks, leaves, flowers, ripples, cracks)."""
     s = S2
@@ -671,7 +671,7 @@ def terrain(seed, base, blotch=(), strokes=None, stones=None, dots=None, leaves=
         if not blotch:
             break
         x, y = a.rng.uniform(0, s), a.rng.uniform(0, s)
-        a.fill_path(to_path(blob(x, y, a.rng.uniform(22, 60), a.rng, 12, 0.3)), rgb(a.rng.choice(blotch)), 0.55)
+        a.fill_path(to_path(blob(x, y, a.rng.uniform(22, 60), a.rng, 12, 0.3)), rgb(a.rng.choice(blotch)), 0.22, blur=6)
     if ripples:
         col, n = ripples
         for r in range(n):
@@ -778,7 +778,7 @@ def path_strip(seed, base, edge_ink=True, fill=True, content=None, h=PH, margin=
         if fill:
             for _ in range(14):
                 x, y = a.rng.uniform(0, PW), a.rng.uniform(margin, h - margin)
-                a.fill_path(to_path(blob(x, y, a.rng.uniform(18, 34), a.rng, 10, 0.3)), vary(a.rng, base, 0.06), 0.6)
+                a.fill_path(to_path(blob(x, y, a.rng.uniform(18, 34), a.rng, 10, 0.3)), vary(a.rng, base, 0.06), 0.22, blur=6)
         if content:
             content(a, top, bot)
     if edge_ink:

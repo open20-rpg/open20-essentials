@@ -579,7 +579,7 @@ def loose_floor(seed, base, blotch, pebble=None, dots=500, cracks=6, strokes=0, 
     a = Art(s, s, seed, tile=True, bg=base)
     for _ in range(36):
         x, y = a.rng.uniform(0, s), a.rng.uniform(0, s)
-        a.fill_path(to_path(blob(x, y, a.rng.uniform(20, 55), a.rng, 12, 0.3)), rgb(a.rng.choice(blotch)), 0.6)
+        a.fill_path(to_path(blob(x, y, a.rng.uniform(20, 55), a.rng, 12, 0.3)), rgb(a.rng.choice(blotch)), 0.22, blur=6)
     for r in range(ripples):
         y = r * s / ripples + a.rng.uniform(-6, 6)
         pts = [(x, y + 5 * math.sin(2 * math.pi * x / s * 3 + r)) for x in range(-20, s + 21, 16)]
@@ -732,7 +732,7 @@ def roots_floor(seed):
     a = Art(s, s, seed, tile=True, bg=base)
     for _ in range(30):
         x, y = a.rng.uniform(0, s), a.rng.uniform(0, s)
-        a.fill_path(to_path(blob(x, y, a.rng.uniform(20, 50), a.rng, 12, 0.3)), rgb(a.rng.choice(("#64503c", "#7a6650"))), 0.6)
+        a.fill_path(to_path(blob(x, y, a.rng.uniform(20, 50), a.rng, 12, 0.3)), rgb(a.rng.choice(("#64503c", "#7a6650"))), 0.22, blur=6)
     for _ in range(9):
         x, y = a.rng.uniform(0, s), a.rng.uniform(0, s)
         t = a.rng.uniform(0, 6.28)

@@ -39,6 +39,12 @@ def preview(img):
     return img.convert("RGBA")
 
 
+def opaque(img):
+    img = img.convert("RGBA")
+    img.putalpha(255)
+    return img
+
+
 def tiled(img):
     w, h = img.size
     t = Image.new("RGBA", (w * 2, h * 2))
@@ -59,6 +65,10 @@ def _render(job):
         img = preview(fn())
     except Exception:  # noqa: BLE001 - reported, not fatal
         return (si, idx, None, traceback.format_exc(limit=2))
+    if kind == "terrain":
+        # Terrain alpha is a height map for blending, not transparency: the
+        # app draws the result opaque, so the preview must too.
+        img = opaque(img)
     if kind in ("tileset", "pattern", "terrain"):
         img = tiled(img)
     ow, oh = img.size
