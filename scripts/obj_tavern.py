@@ -5,7 +5,7 @@ import math
 
 import skia
 
-from kit import BRASS, IRON, RED, STONE, WOOD, WOOD_DARK, WOOD_LIGHT, board, boards, coin, cushion, dot, fruit, pile, scallop, soft_shadow
+from kit import BRASS, IRON, RED, STONE, WOOD, WOOD_DARK, WOOD_LIGHT, board, boards, coin, cushion, dot, fruit, front_lock, open_lid, pile, scallop, soft_shadow
 from obj_craft import handle
 from obj_magic import GLASS, PARCH, candle, flask, glow, open_book, roll
 from obj_storage import coins
@@ -798,9 +798,9 @@ def ornate_chest(seed=1401, wood=WOOD_DARK, metal=GOLD):
     w, h = 300, 200
     a = Art(w, h, seed)
     chest_body(a, 10, 12, w - 10, h - 12, wood, metal)
-    a.shape(rect(w / 2 - 24, h / 2 - 20, w / 2 + 24, h / 2 + 26), metal, outline=DETAIL * 1.3, corner=6, depth=5, light_k=0.5)
-    a.shape(rect(w / 2 - 4, h / 2 - 2, w / 2 + 4, h / 2 + 14), INKC, outline=0, corner=2, depth=1, shade_k=0, light_k=0, mottle=0)
-    a.shape([(w / 2, 30), (w / 2 + 12, 42), (w / 2, 54), (w / 2 - 12, 42)], GEMS[0], outline=FINE * 1.3, corner=1, depth=2, light_k=0.7, mottle=0)
+    cy = h / 2 - 4
+    a.shape([(w / 2, cy - 14), (w / 2 + 14, cy), (w / 2, cy + 14), (w / 2 - 14, cy)], GEMS[0], outline=FINE * 1.3, corner=1, depth=2, light_k=0.7, mottle=0)
+    front_lock(a, w / 2, h - 12, metal, w=46)
     return a.image()
 
 
@@ -809,9 +809,7 @@ def treasure_chest_open(seed=1402, wood=WOOD, metal=GOLD, gems=True):
     a = Art(w, h, seed)
     # The lid flipped open behind, the box with its heap of coins (filling it
     # to the rim, clipped by it) in front.
-    board(a, 14, 6, w - 14, 76, shade(wood, 0.1), n=2, corner=10)
-    for x in (48, w - 48):
-        a.shape(rect(x - 12, 6, x + 12, 76), metal, outline=DETAIL * 1.2, corner=3, depth=4, light_k=0.5, mottle=0)
+    open_lid(a, 10, 6, w - 10, 76, wood, metal, straps=(44, w - 44))
     chest_body(a, 10, 66, w - 10, h - 10, wood, metal)
     inner = rect(28, 82, w - 28, h - 26)
 
@@ -825,6 +823,7 @@ def treasure_chest_open(seed=1402, wood=WOOD, metal=GOLD, gems=True):
                 art.shape([(x, y - 11), (x + 10, y), (x, y + 11), (x - 10, y)], c, outline=DETAIL, corner=1, depth=3, light_k=0.8, mottle=0)
 
     a.shape(inner, rgb("#4a3324"), outline=DETAIL * 1.2, corner=6, depth=10, shade_k=0, light_k=0, ao=0.5, detail=treasure)
+    front_lock(a, w / 2, h - 10, metal, w=46)
     return a.image()
 
 

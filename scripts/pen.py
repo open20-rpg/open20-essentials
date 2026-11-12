@@ -66,7 +66,7 @@ def skc(c, a=1.0):
 # -- geometry ------------------------------------------------------------------------------
 
 
-SHARP_TURN = math.radians(50)
+SHARP_TURN = math.radians(100)
 
 
 def turn(a, b, c):

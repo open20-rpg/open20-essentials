@@ -26,7 +26,7 @@ PACK = {
     "name": "Open20 Essentials",
     "id": PACK_ID,
     # Bump to reinstall it for users that have an older one (see builtin.rs).
-    "version": "2.0.4",
+    "version": "2.0.5",
     "author": "Open20",
     "keywords": "open20, builtin, essentials",
 }

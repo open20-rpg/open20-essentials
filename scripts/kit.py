@@ -171,3 +171,35 @@ def fruit(a, x, y, h, kind=None):
         pts = ellipse(x, y, r, r * 0.95, 28)
     a.shape(pts, col, outline=DETAIL, corner=0, wob=0.2, depth=3, shade_k=0.45, light_k=0.5, ao=0, mottle=0)
     a.ink([(x, y), (x + 3, y - 5)], FINE, color=(122, 82, 51))
+
+
+# -- chests ------------------------------------------------------------------------------------------
+
+
+def front_lock(a, cx, edge, metal=BRASS, w=40, keyhole=True):
+    """A chest's lock seen from above: it sits on the box's front face, so it
+    shows at the front edge (`edge`, the chest's bottom side in the image) —
+    a plate over the rim with its lower part, keyhole and all, foreshortened
+    just past the edge — never in the middle of the lid."""
+    a.shape(rect(cx - w / 2, edge - 16, cx + w / 2, edge + 9), metal, outline=DETAIL * 1.3, corner=5, depth=4, light_k=0.5, mottle=0)
+    a.ink([(cx - w / 2 + 4, edge), (cx + w / 2 - 4, edge)], FINE * 1.2, color=shade(metal, 0.5), alpha=0.8, taper=False, wob=0)
+    for x in (cx - w / 2 + 8, cx + w / 2 - 8):
+        dot(a, x, edge - 9, 2.5, tint(metal, 0.4))
+    if keyhole:
+        a.shape([(cx - 2.5, edge + 1), (cx + 2.5, edge + 1), (cx + 2, edge + 7), (cx - 2, edge + 7)], INK, outline=0, corner=1, shade_k=0, light_k=0, ao=0, mottle=0)
+
+
+def open_lid(a, x0, y0, x1, y1, wood=WOOD, metal=IRON, straps=(), n=2):
+    """A chest lid flung open behind the box (from above): as wide as the box,
+    seen by its inside — darker planks inside the lid's rim — with the
+    straps only where they wrap over its far edge and the hasp hanging from
+    it."""
+    inner = shade(wood, 0.3)
+    a.shape(rect(x0, y0, x1, y1), wood, corner=10, depth=6, shade_k=0.3, light_k=0.2)
+    rim = 11
+    board(a, x0 + rim, y0 + rim, x1 - rim, y1 - 2, inner, n=n, corner=5, outline=DETAIL * 1.1, depth=6, shade_k=0, light_k=0, ao=0.5)
+    for x in straps:
+        a.shape(rect(x - 12, y0, x + 12, y0 + rim + 2), metal, outline=DETAIL * 1.2, corner=3, depth=3, light_k=0.5, mottle=0)
+    cx = (x0 + x1) / 2
+    a.shape(rect(cx - 13, y0 - 2, cx + 13, y0 + 22), metal, outline=DETAIL * 1.2, corner=4, depth=3, light_k=0.5, mottle=0)
+    a.shape(rect(cx - 4, y0 + 8, cx + 4, y0 + 16), shade(metal, 0.6), outline=0, corner=2, shade_k=0, light_k=0, ao=0, mottle=0)

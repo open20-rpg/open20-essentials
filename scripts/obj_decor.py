@@ -5,7 +5,7 @@ import math
 
 import skia
 
-from kit import BRASS, IRON, RED, STONE, WOOD, WOOD_DARK, WOOD_LIGHT, board, boards, cushion, dot, scallop, soft_shadow
+from kit import BRASS, IRON, RED, STONE, WOOD, WOOD_DARK, WOOD_LIGHT, board, boards, cushion, dot, front_lock, scallop, soft_shadow
 from obj_craft import handle
 from obj_furniture import furniture_top, raised_shadow, upholstered
 from obj_magic import GOLD, candle, glow
@@ -526,7 +526,7 @@ def foot_chest(seed=1250):
     a.shape(rect(10, 12, w - 10, h - 12), rgb("#6a3a2e"), corner=10, depth=10, light_k=0.35)
     for x in (50, w / 2, w - 50):
         a.shape(rect(x - 10, 12, x + 10, h - 12), GOLD, outline=DETAIL * 1.3, corner=3, depth=3, light_k=0.5)
-    a.shape(rect(w / 2 - 18, h / 2 - 14, w / 2 + 18, h / 2 + 18), GOLD, outline=DETAIL * 1.3, corner=4, depth=3)
+    front_lock(a, w / 2, h - 12, GOLD)
     return a.image()
 
 

@@ -4,7 +4,7 @@ import math
 
 import skia
 
-from kit import coin, fruit, pile, soft_shadow, BRASS, IRON, RED, STONE, WOOD, WOOD_DARK, WOOD_LIGHT, board, boards, cabinet, dot, grain_lines, ring, scallop
+from kit import coin, fruit, pile, soft_shadow, BRASS, IRON, RED, STONE, WOOD, WOOD_DARK, WOOD_LIGHT, board, boards, cabinet, dot, front_lock, grain_lines, open_lid, ring, scallop
 from pen import DETAIL, FINE, INK, OUTLINE, Art, blob, chaikin, ellipse, mix, rect, rgb, shade, tint, vary
 
 CLAY = rgb("#bf7a4f")
@@ -52,10 +52,10 @@ def open_chest(seed=101):
     w, h = 280, 230
     a = Art(w, h, seed)
     # Lid flipped open behind (top), the box with its treasure in front.
-    board(a, 12, 6, w - 12, 70, WOOD_DARK, n=2, corner=10)
-    for x in (44, w - 44):
-        a.shape(rect(x - 11, 6, x + 11, 70), IRON, outline=DETAIL * 1.2, corner=3, depth=4, mottle=0)
+    open_lid(a, 10, 6, w - 10, 70, WOOD, IRON, straps=(44, w - 44))
     a.shape(rect(10, 64, w - 10, h - 10), WOOD, corner=10, depth=10)
+    for x in (44, w - 44):
+        a.shape(rect(x - 11, 64, x + 11, h - 10), IRON, outline=DETAIL * 1.2, corner=3, depth=4, mottle=0)
 
     def treasure(art, path):
         coins(art, w / 2, 150, 110, 118, ry=72, fill=True)
@@ -67,6 +67,7 @@ def open_chest(seed=101):
         art.shape(ellipse(210, 118, 10, 10, 20), rgb("#7a2030"), outline=FINE, depth=2, shade_k=0, light_k=0, mottle=0)
 
     a.shape(rect(26, 80, w - 26, h - 26), rgb("#4a3324"), outline=DETAIL * 1.2, corner=6, depth=10, shade_k=0, light_k=0, ao=0.5, detail=treasure)
+    front_lock(a, w / 2, h - 10, BRASS)
     return a.image()
 
 

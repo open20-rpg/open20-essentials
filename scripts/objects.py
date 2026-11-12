@@ -136,8 +136,7 @@ def chest(seed=7):
         for y in (26, h / 2, h - 26):
             dot(a, x, y, 3, tint(IRON, 0.45))
             dot(a, x - 1, y - 1, 1.4, tint(IRON, 0.8))
-    a.shape(rect(w / 2 - 20, h / 2 - 16, w / 2 + 20, h / 2 + 22), BRASS, outline=DETAIL * 1.3, corner=6, depth=6)
-    a.shape([(w / 2 - 4, h / 2), (w / 2 + 4, h / 2), (w / 2 + 3, h / 2 + 12), (w / 2 - 3, h / 2 + 12)], INK, outline=0, corner=2, shade_k=0, light_k=0, ao=0, mottle=0)
+    front_lock(a, w / 2, h - 12, BRASS)
     return a.image()
 
 

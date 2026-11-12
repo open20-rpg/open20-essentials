@@ -98,7 +98,9 @@ def arrow_at(a, x, y, ang, L=150):
     a.ink([(x, y), (hx, hy)], 3.5, color=WOOD_LIGHT, taper=False, var=V)
     blade_shape(a, rot_pts([(hx - 2, hy - 6), (hx + 16, hy), (hx - 2, hy + 6)], hx, hy, ang), IRON)
     for s in (-1, 1):
-        a.shape(rot_pts([(x, y), (x + 26, y), (x + 34, y + s * 9), (x + 8, y + s * 9)], x, y, ang), rgb("#e6dcc4"), outline=FINE * 1.3, corner=1, depth=1, mottle=0)
+        # Swept back: the vanes trail toward the nock, so they read as ">>" and
+        # not as a second point.
+        a.shape(rot_pts([(x + 8, y), (x + 34, y), (x + 26, y + s * 9), (x, y + s * 9)], x, y, ang), rgb("#e6dcc4"), outline=FINE * 1.3, corner=1, depth=1, mottle=0)
 
 
 def bow_at(a, x, y, ang, L=240):
