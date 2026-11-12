@@ -237,10 +237,13 @@ def dead_tree(seed=33, size=640):
     m = size / 2
     bark = rgb("#7a624c")
     limbs = []  # (width, polygon, spine)
-    twigs = []  # (spine, width)
 
     def grow(x, y, ang, L, w0, depth):
         w1 = w0 * a.rng.uniform(0.55, 0.68)
+        # The last branches end in a point instead of forking.
+        last = depth >= 4 or w1 < 2.2
+        if last:
+            w1 = 0.6
         n = 12
         spine, widths = [(x, y)], [w0]
         turn = a.rng.gauss(0, 0.04)
@@ -251,18 +254,16 @@ def dead_tree(seed=33, size=640):
             px, py = spine[-1]
             spine.append((px + L / n * math.cos(ang), py + L / n * math.sin(ang)))
             widths.append(w0 + (w1 - w0) * j / n)
-        if w0 < 5:
-            twigs.append((spine, w0))
-        else:
-            ns = normals(spine, False)
-            left = [(px + nx * w / 2, py + ny * w / 2) for (px, py), (nx, ny), w in zip(spine, ns, widths)]
-            right = [(px - nx * w / 2, py - ny * w / 2) for (px, py), (nx, ny), w in zip(spine, ns, widths)]
-            tip = spine[-1]
-            # A round end, so the forks grow out of it smoothly.
-            cap = [(tip[0] + math.cos(ang + t) * w1 / 2, tip[1] + math.sin(ang + t) * w1 / 2) for t in [math.pi / 2 - math.pi * k / 6 for k in range(7)]]
-            limbs.append((w0, left + cap + right[::-1], spine))
-        if depth >= 4 or w1 < 2.2:
+        ns = normals(spine, False)
+        left = [(px + nx * w / 2, py + ny * w / 2) for (px, py), (nx, ny), w in zip(spine, ns, widths)]
+        right = [(px - nx * w / 2, py - ny * w / 2) for (px, py), (nx, ny), w in zip(spine, ns, widths)]
+        if last:
+            limbs.append((w0, left + [spine[-1]] + right[::-1], spine))
             return
+        tip = spine[-1]
+        # A round end, so the forks grow out of it smoothly.
+        cap = [(tip[0] + math.cos(ang + t) * w1 / 2, tip[1] + math.sin(ang + t) * w1 / 2) for t in [math.pi / 2 - math.pi * k / 6 for k in range(7)]]
+        limbs.append((w0, left + cap + right[::-1], spine))
         forks = 2 if a.rng.random() < 0.85 else 3
         spread = a.rng.uniform(0.35, 0.6)
         for k in range(forks):
@@ -285,12 +286,11 @@ def dead_tree(seed=33, size=640):
         ang = rot + 2 * math.pi * i / count + a.rng.uniform(-0.25, 0.25)
         foreshorten = 1 - 0.12 * math.sin(ang)
         grow(crown[0], crown[1], ang, size * a.rng.uniform(0.13, 0.16) * foreshorten, a.rng.uniform(34, 42), 0)
-    for spine, w in twigs:
-        a.ink(spine, w + 0.6, color=shade(bark, 0.65), alpha=0.95, taper=True, wob=0.2, var=0.1)
     # All limbs and the trunk as ONE shape: one outline, no seams at the forks.
     from pen import to_path
 
-    body = skia.Path()
+    combined = skia.Path()
+    combined.setFillType(skia.PathFillType.kWinding)
     # The trunk: wide at its foot (with a few roots), narrowing as it rises.
     tw0, tw1 = 48, 38
     steps = 10
@@ -299,17 +299,22 @@ def dead_tree(seed=33, size=640):
     lt = [(x + nx * (tw0 + (tw1 - tw0) * k / steps) / 2, y + ny * (tw0 + (tw1 - tw0) * k / steps) / 2) for k, ((x, y), (nx, ny)) in enumerate(zip(spine_t, ns_t))]
     rt = [(x - nx * (tw0 + (tw1 - tw0) * k / steps) / 2, y - ny * (tw0 + (tw1 - tw0) * k / steps) / 2) for k, ((x, y), (nx, ny)) in enumerate(zip(spine_t, ns_t))]
     trunk = lt + rt[::-1]
-    # Root flare: low, rounded bulges around the trunk's foot.
-    flare = []
-    for i in range(80):
-        t = 2 * math.pi * i / 80
-        r = 28 * (1 + 0.15 * abs(math.sin(3 * t + 0.5)))
-        flare.append((base[0] + r * math.cos(t), base[1] + r * 0.55 * math.sin(t)))
-    limbs.append((40, flare, []))
+    foot = ellipse(base[0], base[1], tw0 / 2, tw0 * 0.28, 32)
     crown_knot = scallop(crown[0], crown[1], 24, a.rng, 9, 0.08)
-    for poly in [trunk, crown_knot] + [p for _, p, _ in limbs]:
+    for poly in [trunk, foot, crown_knot] + [p for _, p, _ in limbs]:
         q = to_path(poly)
-        body = skia.Op(body, q, skia.kUnion_PathOp) if not body.isEmpty() else q
+        if combined.isEmpty():
+            combined = q
+            continue
+        try:
+            combined = skia.Op(combined, q, skia.kUnion_PathOp)
+        except RuntimeError:
+            # A sliver that self-intersects: clean it up first.
+            try:
+                combined = skia.Op(combined, skia.Simplify(q), skia.kUnion_PathOp)
+            except RuntimeError:
+                pass
+    body = combined
     a.fill_path(body, bark)
     with a.clip(body):
         # Darker toward the trunk's foot, lighter up in the limbs.
@@ -350,7 +355,7 @@ def dead_tree(seed=33, size=640):
                     if len(seg) > 1:
                         a.ink(seg, FINE * 0.9, color=shade(bark, 0.6), alpha=0.65, wob=0.4)
                     j += run + a.rng.randint(1, 3)
-    a.stroke_path(body, INK, DETAIL * 1.25)
+    a.stroke_path(body, INK, DETAIL * 0.9)
     return a.image()
 
 
