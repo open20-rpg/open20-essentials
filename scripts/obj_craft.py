@@ -69,13 +69,19 @@ def saw_at(a, x, y, ang, L=170):
 
 
 def axe_at(a, x, y, ang, L=150):
+    """An axe lying flat: the handle, and at its end the head standing out
+    sideways (perpendicular to the handle): the eye around the handle, the
+    poll behind it and the blade flaring to a curved cutting edge."""
     ux, uy = math.cos(ang), math.sin(ang)
     hx, hy = x + ux * L, y + uy * L
-    handle(a, x, y, hx, hy, 11)
-    head = rot_pts(chaikin([(hx - 16, hy - 14), (hx + 14, hy - 14), (hx + 30, hy - 52), (hx + 44, hy - 30), (hx + 46, hy + 8), (hx + 30, hy + 30), (hx + 14, hy + 14), (hx - 16, hy + 14)], True, 1), hx, hy, ang)
-    a.shape(head, STEEL, outline=DETAIL * 1.3, corner=0, depth=4, light_k=0.55, mottle=0)
-    a.ink(rot_pts([(hx + 40, hy - 30), (hx + 42, hy + 6)], hx, hy, ang), FINE * 1.4, color=tint(STEEL, 0.6), alpha=0.9)
-
+    handle(a, x, y, hx + ux * 8, hy + uy * 8, 11)
+    edge = [(hx + 34 * math.cos(t), hy - 42 + 14 * math.sin(t)) for t in [-0.1 - k * (math.pi - 0.2) / 12 for k in range(13)]]
+    local = [(hx - 12, hy + 18), (hx + 12, hy + 18), (hx + 12, hy - 6), (hx + 34, hy - 40)] + edge[1:-1] + [(hx - 30, hy - 40), (hx - 12, hy - 6)]
+    head = rot_pts(local, hx, hy, ang)
+    a.shape(head, STEEL, outline=DETAIL * 1.3, corner=2, depth=4, light_k=0.55, mottle=0)
+    bevel = rot_pts([(hx - 24, hy - 38), (hx, hy - 44), (hx + 28, hy - 38)], hx, hy, ang)
+    a.ink(bevel, FINE * 1.4, color=tint(STEEL, 0.65), alpha=0.9)
+    a.ink(rot_pts([(hx - 12, hy + 4), (hx + 12, hy + 4)], hx, hy, ang), FINE * 1.2, color=shade(STEEL, 0.4), alpha=0.8)
 
 def shovel_at(a, x, y, ang, L=170):
     ux, uy = math.cos(ang), math.sin(ang)
