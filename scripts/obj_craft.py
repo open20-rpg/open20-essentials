@@ -27,9 +27,9 @@ def rot_pts(pts, cx, cy, ang):
 
 
 def handle(a, x0, y0, x1, y1, w=10, color=WOOD):
-    a.ink([(x0, y0), (x1, y1)], w + 9, color=INK, taper=False, wob=0, var=0.02)
-    a.ink([(x0, y0), (x1, y1)], w, color=color, taper=False, wob=0, var=0.02)
-    a.ink([(x0, y0), (x1, y1)], max(1, w * 0.2), color=tint(color, 0.35), alpha=0.7, taper=False, wob=0, var=0.02)
+    a.ink([(x0, y0), (x1, y1)], w + 9, color=INK, taper=False, wob=0, var=0.08)
+    a.ink([(x0, y0), (x1, y1)], w, color=color, taper=False, wob=0, var=0.08)
+    a.ink([(x0, y0), (x1, y1)], max(1, w * 0.2), color=tint(color, 0.35), alpha=0.7, taper=False, wob=0, var=0.08)
 
 
 def hammer_at(a, x, y, ang, L=110):
@@ -37,14 +37,14 @@ def hammer_at(a, x, y, ang, L=110):
     hx, hy = x + ux * L, y + uy * L
     handle(a, x, y, hx, hy, 10)
     head = rot_pts(rect(hx - 12, hy - 26, hx + 12, hy + 26), hx, hy, ang)
-    a.shape(head, IRON, outline=DETAIL * 2.0, corner=3, depth=3, light_k=0.5, mottle=0, var=0.03)
+    a.shape(head, IRON, outline=DETAIL * 2.0, corner=3, depth=3, light_k=0.5, mottle=0, var=0.08)
 
 
 def tongs_at(a, x, y, ang, L=130):
     for side in (-1, 1):
         t = ang + side * 0.06
-        a.ink([(x, y), (x + L * math.cos(t), y + L * math.sin(t))], 13, color=INK, taper=False, var=0.02)
-        a.ink([(x, y), (x + L * math.cos(t), y + L * math.sin(t))], 6, color=shade(IRON, 0.1), taper=False, var=0.02)
+        a.ink([(x, y), (x + L * math.cos(t), y + L * math.sin(t))], 13, color=INK, taper=False, var=0.08)
+        a.ink([(x, y), (x + L * math.cos(t), y + L * math.sin(t))], 6, color=shade(IRON, 0.1), taper=False, var=0.08)
     dot(a, x + L * 0.62 * math.cos(ang), y + L * 0.62 * math.sin(ang), 5, STEEL)
 
 
@@ -60,12 +60,12 @@ def saw_at(a, x, y, ang, L=170):
         tooth_pts.append((bx, by + (5 if k % 2 else 0)))
     blade = [(x + 40, y - 14), (x + L, y - 2)] + tooth_pts[::-1]
     blade = rot_pts(blade, x, y, ang)
-    a.shape(blade, STEEL, outline=DETAIL * 2.0, corner=0, wob=0.1, depth=2, light_k=0.55, mottle=0, var=0.03)
+    a.shape(blade, STEEL, outline=DETAIL * 2.0, corner=0, wob=0.1, depth=2, light_k=0.55, mottle=0, var=0.08)
     a.ink(rot_pts([(x + 50, y - 6), (x + L - 20, y + 1)], x, y, ang), FINE * 1.2, color=tint(STEEL, 0.6), alpha=0.8)
     grip = rot_pts(chaikin([(x, y - 22), (x + 46, y - 18), (x + 46, y + 18), (x, y + 24)], True, 2), x, y, ang)
-    a.shape(grip, WOOD, outline=DETAIL * 2.0, corner=0, depth=3, mottle=0, var=0.03)
+    a.shape(grip, WOOD, outline=DETAIL * 2.0, corner=0, depth=3, mottle=0, var=0.08)
     hole = rot_pts(ellipse(x + 20, y, 9, 12, 20), x, y, ang)
-    a.shape(hole, rgb("#e8dfc8"), outline=FINE * 1.2, corner=0, depth=1, shade_k=0, light_k=0, ao=0, mottle=0, var=0.03)
+    a.shape(hole, rgb("#e8dfc8"), outline=FINE * 1.2, corner=0, depth=1, shade_k=0, light_k=0, ao=0, mottle=0, var=0.08)
 
 
 def axe_at(a, x, y, ang, L=150):
@@ -78,7 +78,7 @@ def axe_at(a, x, y, ang, L=150):
     edge = [(hx + 34 * math.cos(t), hy - 42 + 14 * math.sin(t)) for t in [-0.1 - k * (math.pi - 0.2) / 12 for k in range(13)]]
     local = [(hx - 12, hy + 18), (hx + 12, hy + 18), (hx + 12, hy - 6), (hx + 34, hy - 40)] + edge[1:-1] + [(hx - 30, hy - 40), (hx - 12, hy - 6)]
     head = rot_pts(local, hx, hy, ang)
-    a.shape(head, STEEL, outline=DETAIL * 2.0, corner=2, depth=4, light_k=0.55, mottle=0, var=0.03)
+    a.shape(head, STEEL, outline=DETAIL * 2.0, corner=2, depth=4, light_k=0.55, mottle=0, var=0.08)
     bevel = rot_pts([(hx - 24, hy - 38), (hx, hy - 44), (hx + 28, hy - 38)], hx, hy, ang)
     a.ink(bevel, FINE * 1.4, color=tint(STEEL, 0.65), alpha=0.9)
     a.ink(rot_pts([(hx - 12, hy + 4), (hx + 12, hy + 4)], hx, hy, ang), FINE * 1.2, color=shade(STEEL, 0.4), alpha=0.8)
@@ -88,9 +88,9 @@ def shovel_at(a, x, y, ang, L=170):
     hx, hy = x + ux * L, y + uy * L
     handle(a, x, y, hx, hy, 10)
     blade = rot_pts(chaikin([(hx, hy - 24), (hx + 60, hy - 22), (hx + 74, hy), (hx + 60, hy + 22), (hx, hy + 24)], True, 1), hx, hy, ang)
-    a.shape(blade, STEEL, outline=DETAIL * 2.0, corner=0, depth=3, light_k=0.5, mottle=0, var=0.03)
-    a.ink(rot_pts([(x - 14, y - 16), (x - 14, y + 16)], x, y, ang), 12, color=INK, taper=False, var=0.02)
-    a.ink(rot_pts([(x - 14, y - 16), (x - 14, y + 16)], x, y, ang), 5, color=WOOD, taper=False, var=0.02)
+    a.shape(blade, STEEL, outline=DETAIL * 2.0, corner=0, depth=3, light_k=0.5, mottle=0, var=0.08)
+    a.ink(rot_pts([(x - 14, y - 16), (x - 14, y + 16)], x, y, ang), 12, color=INK, taper=False, var=0.08)
+    a.ink(rot_pts([(x - 14, y - 16), (x - 14, y + 16)], x, y, ang), 5, color=WOOD, taper=False, var=0.08)
 
 
 def pickaxe_at(a, x, y, ang, L=150):
@@ -98,7 +98,7 @@ def pickaxe_at(a, x, y, ang, L=150):
     hx, hy = x + ux * L, y + uy * L
     handle(a, x, y, hx, hy, 11)
     head = rot_pts(chaikin([(hx - 4, hy - 60), (hx + 8, hy - 20), (hx + 10, hy), (hx + 8, hy + 20), (hx - 4, hy + 60), (hx - 8, hy + 20), (hx - 8, hy - 20)], True, 1), hx, hy, ang)
-    a.shape(head, IRON, outline=DETAIL * 2.0, corner=0, depth=3, light_k=0.5, mottle=0, var=0.03)
+    a.shape(head, IRON, outline=DETAIL * 2.0, corner=0, depth=3, light_k=0.5, mottle=0, var=0.08)
 
 
 def tool(fn, w=260, h=200, ang=-0.4, x=None, y=None, **kw):
