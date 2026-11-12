@@ -1,19 +1,18 @@
-"""Builds the app's built-in asset pack (`src-tauri/resources/builtin.dungeondraft_pack`).
+"""Draws the app's built-in asset pack into `src-tauri/resources/builtin/`.
 
-    python3 scripts/builtin-pack/build.py
+    npm run pack   (python3 scripts/builtin-pack/build.py)
 
 Every texture is drawn by code (pen.py + the obj_*/tex_* modules, listed in
-catalog.py), so the pack can be regenerated and tweaked; the output is
-committed so builds don't need Python. Layout and data files follow
-Dungeondraft's pack format, which the app already reads (see src-tauri/src/pack/).
-Rendering runs in parallel; output order is deterministic.
+catalog.py). The output is the pack's files, unpacked, laid out as in the
+pack (`<id>.json` manifest + `<id>/textures/...`, `<id>/data/...`) and
+committed: drawing takes a while, so CI never does it. build.rs packs that
+folder into the `.dungeondraft_pack` the app embeds. Only files whose bytes
+changed are rewritten, so a commit shows exactly which assets changed.
 """
 
-import hashlib
 import io
 import json
 import os
-import struct
 import sys
 from multiprocessing import Pool
 
@@ -26,12 +25,12 @@ PACK = {
     "name": "Open20 Essentials",
     "id": PACK_ID,
     # Bump to reinstall it for users that have an older one (see builtin.rs).
-    "version": "2.0.0",
+    "version": "2.0.1",
     "author": "Open20",
     "keywords": "open20, builtin, essentials",
 }
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-OUT = os.path.join(ROOT, "src-tauri", "resources", "builtin.dungeondraft_pack")
+OUT = os.path.join(ROOT, "src-tauri", "resources", "builtin")
 
 # Object sections become folders and tags (English: pack data, not UI).
 OBJECT_GROUPS = {
@@ -150,26 +149,35 @@ def main():
             if colorable:
                 tags["Colorable"].append(rel)
     files["data/default.dungeondraft_tags"] = json.dumps({"tags": tags, "sets": {}}, indent=1).encode()
-    write_pck(files)
+    write_dir(files)
 
 
-def write_pck(files):
-    """A Godot 3 PCK (format 1), as `.dungeondraft_pack` files are."""
-    entries = [(f"res://packs/{PACK_ID}.json", json.dumps(PACK, indent=1).encode())]
-    entries += [(res(rel), data) for rel, data in sorted(files.items())]
-    index_size = sum(4 + len(p.encode()) + 8 + 8 + 16 for p, _ in entries)
-    offset = 88 + index_size
-    header = struct.pack("<IIIII", 0x43504447, 1, 3, 4, 0) + b"\0" * 64 + struct.pack("<I", len(entries))
-    index, blobs = b"", b""
-    for path, data in entries:
-        pb = path.encode()
-        index += struct.pack("<I", len(pb)) + pb + struct.pack("<QQ", offset, len(data)) + hashlib.md5(data).digest()
-        blobs += data
-        offset += len(data)
-    os.makedirs(os.path.dirname(OUT), exist_ok=True)
-    with open(OUT, "wb") as f:
-        f.write(header + index + blobs)
-    print(f"{OUT}: {len(entries)} files, {os.path.getsize(OUT) / 1e6:.2f} MB")
+def write_dir(files):
+    """Sync OUT with the pack's files: rewrite only what changed, drop stale ones."""
+    want = {f"{PACK_ID}.json": (json.dumps(PACK, indent=2) + "\n").encode()}
+    want.update({f"{PACK_ID}/{rel}": data for rel, data in files.items()})
+    changed = 0
+    for rel, data in want.items():
+        path = os.path.join(OUT, rel)
+        try:
+            with open(path, "rb") as f:
+                if f.read() == data:
+                    continue
+        except FileNotFoundError:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "wb") as f:
+            f.write(data)
+        changed += 1
+    removed = 0
+    for dirpath, _dirs, names in os.walk(OUT, topdown=False):
+        for n in names:
+            rel = os.path.relpath(os.path.join(dirpath, n), OUT).replace(os.sep, "/")
+            if rel not in want:
+                os.remove(os.path.join(dirpath, n))
+                removed += 1
+        if dirpath != OUT and not os.listdir(dirpath):
+            os.rmdir(dirpath)
+    print(f"{OUT}: {len(want)} files ({changed} written, {removed} removed)")
 
 
 if __name__ == "__main__":
