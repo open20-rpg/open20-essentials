@@ -344,20 +344,37 @@ def fern(seed=317):
 
 
 def flowers(seed=318, petal=rgb("#e6b84a"), center=rgb("#9a5a2a")):
+    """A clump of flowers: leaves at the base, then a stem from the clump's
+    center out to each flower (curving a little, with a leaf on it), and the
+    flower heads at the stems' ends."""
     s = 240
     a = Art(s, s, seed)
     m = s / 2
-    blades(a, m, m, 14, 70, [GREEN, GREEN_D, GREEN_L])
-    for _ in range(9):
-        t, d = a.rng.uniform(0, 6.28), a.rng.uniform(0, 80)
-        x, y = m + d * math.cos(t), m + d * math.sin(t)
+    blades(a, m, m, 12, 56, [GREEN, GREEN_D, GREEN_L], width=8)
+    heads = []
+    n = 8
+    rot = a.rng.uniform(0, 6.28)
+    for i in range(n):
+        t = rot + 2 * math.pi * i / n + a.rng.uniform(-0.25, 0.25)
+        d = a.rng.uniform(55, 92)
+        bend = a.rng.uniform(-0.35, 0.35)
+        stem = [(m + d * k / 10 * math.cos(t + bend * (k / 10) ** 2), m + d * k / 10 * math.sin(t + bend * (k / 10) ** 2)) for k in range(11)]
+        heads.append((stem, t + bend))
+    stems_color = shade(GREEN, 0.15)
+    for stem, t in heads:
+        a.ink(stem, 5.5, color=INK, taper=False, wob=0.2)
+        a.ink(stem, 3.2, color=stems_color, taper=False, wob=0.2)
+        lx, ly = stem[5]
+        side = a.rng.choice((-1, 1))
+        leaf(a, lx + math.cos(t + side * 1.2) * 8, ly + math.sin(t + side * 1.2) * 8, 20, vary(a.rng, GREEN_L, 0.05), ang=t + side * 0.9, vein=False, outline=FINE)
+    for stem, t in heads:
+        x, y = stem[-1]
         r = a.rng.uniform(11, 15)
         for k in range(5):
             pa = 2 * math.pi * k / 5 + a.rng.uniform(-0.1, 0.1)
             a.shape(ellipse(x + r * 0.6 * math.cos(pa), y + r * 0.6 * math.sin(pa), r * 0.55, r * 0.38, 16, rot=pa), vary(a.rng, petal, 0.05), outline=FINE * 1.1, depth=1, shade_k=0.3, light_k=0.3, ao=0, mottle=0)
         dot(a, x, y, r * 0.3, center)
     return a.image()
-
 
 def red_flowers(seed=319):
     return flowers(seed, rgb("#c8443a"), rgb("#3a2a22"))
