@@ -286,33 +286,6 @@ def tall_candelabrum(seed=727):
 # -- idols & shrines -------------------------------------------------------------------------------
 
 
-def stone_idol(seed=731):
-    s = 220
-    a = Art(s, s, seed)
-    m = s / 2
-    stone_block(a, rect(16, 16, s - 16, s - 16), DARK_STONE, corner=6, cracks=1)
-    # A squat seated figure from above: big round head, folded arms, knees.
-    for dx in (-44, 44):
-        stone_block(a, ellipse(m + dx, m + 46, 26, 22, 32), GREY, outline=DETAIL * 1.2, cracks=0)
-    stone_block(a, ellipse(m, m + 14, 60, 46, 48), GREY, outline=DETAIL * 1.3, cracks=0, light_k=0.4)
-    stone_block(a, ellipse(m, m - 26, 40, 38, 48), LIGHT_STONE, outline=DETAIL * 1.3, cracks=1, light_k=0.45)
-    a.ink([(m - 14, m - 26), (m - 4, m - 26)], DETAIL * 1.3)
-    a.ink([(m + 4, m - 26), (m + 14, m - 26)], DETAIL * 1.3)
-    return a.image()
-
-
-def golden_idol(seed=732):
-    s = 160
-    a = Art(s, s, seed)
-    m = s / 2
-    glow(a, m, m, 70, GOLD, 0.4)
-    a.shape(ellipse(m, m + 18, 40, 30, 40), GOLD, outline=DETAIL * 1.3, depth=5, light_k=0.6)
-    a.shape(ellipse(m, m - 14, 28, 26, 36), tint(GOLD, 0.1), outline=DETAIL * 1.3, depth=5, light_k=0.6)
-    for dx in (-10, 10):
-        a.shape(ellipse(m + dx, m - 14, 5, 5, 12), rgb("#c8443a"), outline=FINE, depth=1, light_k=0.8, mottle=0)
-    return a.image()
-
-
 def goddess_statue(seed=733):
     s = 260
     a = Art(s, s, seed)
@@ -372,8 +345,6 @@ TEMPLE = {
     "Gong": gong,
     "Votive Candles": votive_rack,
     "Tall Candelabrum": tall_candelabrum,
-    "Stone Idol": stone_idol,
-    "Golden Idol": golden_idol,
     "Goddess Statue": goddess_statue,
     "Wayside Shrine": wayside_shrine,
 }
