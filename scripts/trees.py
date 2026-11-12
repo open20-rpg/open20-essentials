@@ -23,16 +23,16 @@ COLORABLE = ((rgb("#7a1c1c"), rgb("#b02a2a"), rgb("#dc5050")), rgb("#2c2222"))
 N_ANG = 360
 
 
-def organic_radius(rng, R, lobes=(3, 7), stretch=(1.0, 1.3)):
+def organic_radius(rng, R, lobes=(3, 7), stretch=(1.0, 1.12), reach=(0.08, 0.28)):
     """An irregular, star-shaped outline as radius-per-degree: a core plus
     random lobes (some far out, making arms), maybe stretched one way,
     smoothed so there are no creases. Peaks at about R."""
-    core = R * rng.uniform(0.45, 0.6)
+    core = R * rng.uniform(0.62, 0.72)
     ls = []
     for _ in range(rng.randint(*lobes)):
         ang = rng.uniform(0, 2 * math.pi)
-        d = R * rng.uniform(0.15, 0.5)
-        ls.append((d * math.cos(ang), d * math.sin(ang), R * rng.uniform(0.28, 0.5)))
+        d = R * rng.uniform(*reach)
+        ls.append((d * math.cos(ang), d * math.sin(ang), R * rng.uniform(0.45, 0.6)))
     k = rng.uniform(*stretch)
     rot = rng.uniform(0, math.pi)
     rs = []
@@ -84,7 +84,7 @@ def bumpy_ring(rng, cx, cy, rs, scale, start, span, bump_len, height, sizes=(0.7
     return pts
 
 
-def leafy(seed, palette, size=720, bump=(0.12, 0.2), rings=(0.8, 0.6, 0.4, 0.2), lobes=(3, 7), stretch=(1.0, 1.3)):
+def leafy(seed, palette, size=720, bump=(0.12, 0.2), rings=(0.8, 0.6, 0.4, 0.2), lobes=(3, 7), stretch=(1.0, 1.12), reach=(0.08, 0.28)):
     """A broadleaf tree: an irregular organic canopy with a bumpy edge, pen
     lines following its shape inward (scaled outlines), lit top-left."""
     greens, ink = palette
@@ -92,7 +92,7 @@ def leafy(seed, palette, size=720, bump=(0.12, 0.2), rings=(0.8, 0.6, 0.4, 0.2),
     a = Art(size, size, seed)
     cx = cy = size / 2
     R = size * 0.42
-    rs = organic_radius(a.rng, R, lobes, stretch)
+    rs = organic_radius(a.rng, R, lobes, stretch, reach)
     bl = R * a.rng.uniform(*bump)
     edge = bumpy_ring(a.rng, cx, cy, rs, 1 / 1.06, 0, 2 * math.pi, bl, bl * 0.32)
 
@@ -151,7 +151,7 @@ def pine(seed=31, size=640, colors=(rgb("#2c5233"), rgb("#3f6e44"), rgb("#6a9a64
     a = Art(size, size, seed)
     cx = cy = size / 2
     R = size * 0.42
-    rs = organic_radius(a.rng, R, lobes=(3, 6), stretch=(1.0, 1.2))
+    rs = organic_radius(a.rng, R, lobes=(3, 6), stretch=(1.0, 1.1))
     tooth = R * a.rng.uniform(0.07, 0.1)
     edge = spiky_ring(a.rng, cx, cy, rs, 1 / 1.08, 0, 2 * math.pi, tooth, tooth * 0.75)
 
@@ -227,35 +227,58 @@ def palm(seed=32, size=620):
     return a.image()
 
 
-def dead_tree(seed=33, size=620):
+def dead_tree(seed=33, size=640):
+    """A bare tree from above: limbs that taper smoothly from the trunk to the
+    tips, bending as they go, with branches sprouting along them."""
     a = Art(size, size, seed)
     m = size / 2
     bark = rgb("#7a624c")
-    strokes = []
+    limbs = []  # (depth, polygon, spine)
 
-    def branch(x, y, ang, L, w, depth):
-        ex, ey = x + L * math.cos(ang), y + L * math.sin(ang)
-        mx = (x + ex) / 2 + a.rng.uniform(-10, 10)
-        my = (y + ey) / 2 + a.rng.uniform(-10, 10)
-        strokes.append((chaikin([(x, y), (mx, my), (ex, ey)], False, 2), w))
-        if depth > 0:
-            for d in (-1, 1):
-                if a.rng.random() < 0.9:
-                    branch(ex, ey, ang + d * a.rng.uniform(0.35, 0.6), L * a.rng.uniform(0.55, 0.7), w * 0.62, depth - 1)
+    def grow(x, y, ang, L, w0, depth):
+        n = 14
+        spine, widths = [], []
+        bend = a.rng.uniform(-0.5, 0.5)
+        for j in range(n + 1):
+            t = j / n
+            aa = ang + bend * t + 0.25 * math.sin(t * 5 + depth)
+            if j:
+                px, py = spine[-1]
+                spine.append((px + L / n * math.cos(aa), py + L / n * math.sin(aa)))
+            else:
+                spine.append((x, y))
+            widths.append(max(1.2, w0 * (1 - t) ** 0.85))
+        from pen import normals
 
-    for i in range(5):
-        ang = 2 * math.pi * i / 5 + a.rng.uniform(-0.25, 0.25)
-        branch(m, m, ang, size * a.rng.uniform(0.2, 0.25), 26, 2)
-    # All the ink first, then all the bark, so branches merge at the forks.
-    seed_ = a.rng.getstate()
-    for pts, w in strokes:
-        a.ink(pts, w + 7, color=INK, taper=True, wob=0.0, var=0.0)
-    for pts, w in strokes:
-        a.ink(pts, w, color=bark, taper=True, wob=0.0, var=0.0)
-        a.ink(pts, max(1.5, w * 0.18), color=shade(bark, 0.45), alpha=0.7, taper=True, wob=0.3)
-    a.rng.setstate(seed_)
-    a.shape(ellipse(m, m, 40, 40, 40), bark, outline=OUTLINE, depth=7)
-    a.ink(ellipse(m + 2, m + 2, 18, 18, 24), FINE * 1.2, closed=True, color=shade(bark, 0.5), alpha=0.8)
+        ns = normals(spine, False)
+        left = [(px + nx * w / 2, py + ny * w / 2) for (px, py), (nx, ny), w in zip(spine, ns, widths)]
+        right = [(px - nx * w / 2, py - ny * w / 2) for (px, py), (nx, ny), w in zip(spine, ns, widths)]
+        limbs.append((depth, left + right[::-1], spine))
+        if depth >= 3 or w0 < 5:
+            return
+        for _ in range(a.rng.randint(2, 3)):
+            t = a.rng.uniform(0.35, 0.85)
+            j = int(t * n)
+            bx, by = spine[j]
+            px, py = spine[j - 1]
+            ang_here = math.atan2(by - py, bx - px)
+            side = a.rng.choice((-1, 1))
+            grow(bx, by, ang_here + side * a.rng.uniform(0.45, 0.9), L * a.rng.uniform(0.45, 0.65), widths[j] * 0.75, depth + 1)
+
+    count = a.rng.randint(5, 6)
+    rot = a.rng.uniform(0, 6.28)
+    for i in range(count):
+        ang = rot + 2 * math.pi * i / count + a.rng.uniform(-0.2, 0.2)
+        grow(m, m, ang, size * a.rng.uniform(0.3, 0.37), 42, 0)
+    # Thinnest first, so thicker limbs cover the joints.
+    for depth, poly, spine in sorted(limbs, key=lambda l: -l[0]):
+
+        def grain(art, path, spine=spine):
+            art.ink(spine[1:-2], FINE, color=shade(bark, 0.45), alpha=0.7, wob=0.3)
+
+        a.shape(poly, vary(a.rng, bark, 0.04), outline=DETAIL * (1.3 if depth == 0 else 1.0), corner=0, wob=0.2, depth=4, shade_k=0.4, light_k=0.25, ao=0.0, mottle=0, detail=grain)
+    a.shape(scallop(m, m, 34, a.rng, 9, 0.08), bark, outline=OUTLINE, corner=0, depth=7)
+    a.ink(ellipse(m + 2, m + 2, 14, 14, 24), FINE * 1.2, closed=True, color=shade(bark, 0.5), alpha=0.8)
     return a.image()
 
 
@@ -298,16 +321,16 @@ def stump(seed=34, size=300):
 
 
 TREES = {
-    "Oak Tree": lambda: leafy(16, OAK),
-    "Wide Oak": lambda: leafy(51, OAK, size=780, lobes=(5, 8), stretch=(1.15, 1.4)),
-    "Forest Tree": lambda: leafy(42, DEEP, bump=(0.08, 0.13), lobes=(4, 7)),
-    "Twin Crown Tree": lambda: leafy(52, OAK, lobes=(2, 2), stretch=(1.3, 1.5)),
+    "Oak Tree": lambda: leafy(16, OAK, reach=(0.02, 0.1)),
+    "Wide Oak": lambda: leafy(51, OAK, size=780, lobes=(5, 8), stretch=(1.1, 1.2)),
+    "Forest Tree": lambda: leafy(42, DEEP, bump=(0.08, 0.13), reach=(0.02, 0.1)),
+    "Twin Crown Tree": lambda: leafy(52, OAK, lobes=(2, 2), stretch=(1.15, 1.25), reach=(0.25, 0.32)),
     "Autumn Tree": lambda: leafy(43, AUTUMN, bump=(0.15, 0.24)),
-    "Crimson Tree": lambda: leafy(44, CRIMSON, lobes=(4, 6), rings=(0.78, 0.52, 0.26)),
-    "Birch Tree": lambda: leafy(45, BIRCH, size=560, bump=(0.09, 0.14), stretch=(1.1, 1.3)),
-    "Blossom Tree": lambda: leafy(46, BLOSSOM, size=620, bump=(0.16, 0.26), lobes=(5, 8)),
-    "Young Tree": lambda: leafy(53, OAK, size=420, rings=(0.7, 0.35)),
-    "Colorable Tree": lambda: leafy(47, COLORABLE),
+    "Crimson Tree": lambda: leafy(44, CRIMSON, lobes=(4, 6), rings=(0.78, 0.52, 0.26), reach=(0.02, 0.12)),
+    "Birch Tree": lambda: leafy(45, BIRCH, size=560, bump=(0.09, 0.14)),
+    "Blossom Tree": lambda: leafy(46, BLOSSOM, size=620, bump=(0.16, 0.26), reach=(0.02, 0.1)),
+    "Young Tree": lambda: leafy(53, OAK, size=420, rings=(0.7, 0.35), reach=(0.02, 0.1)),
+    "Colorable Tree": lambda: leafy(47, COLORABLE, reach=(0.02, 0.12)),
     "Pine Tree": pine,
     "Tall Pine": lambda: pine(36, size=700, colors=(rgb("#23462e"), rgb("#33603c"), rgb("#55845a"))),
     "Small Pine": lambda: pine(35, size=420),
