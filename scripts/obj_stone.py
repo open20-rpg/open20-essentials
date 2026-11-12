@@ -127,23 +127,30 @@ def rubble(seed=204):
 
 
 def statue(seed=205):
-    """A robed figure on a plinth, seen from above: head, shoulders and robe."""
+    """A robed figure with a sword on a plinth, seen from above: the robe's
+    hem flaring out under broad shoulders, the head, and arms running down
+    the sides and forward to hands resting on the sword's pommel."""
     s = 260
     a = Art(s, s, seed)
     m = s / 2
     stone_block(a, rect(14, 14, s - 14, s - 14), DARK_STONE, corner=8, cracks=1)
 
-    def robe_folds(art, path):
-        for dx in (-40, -14, 14, 40):
-            art.ink([(m + dx, m + 10), (m + dx * 1.2, m + 96)], FINE * 1.3, color=shade(MARBLE, 0.4), alpha=0.8)
+    def folds(art, path):
+        for dx in (-60, -30, 30, 60):
+            art.ink([(m + dx * 0.8, m + 30), (m + dx, m + 74)], FINE * 1.3, color=shade(MARBLE, 0.4), alpha=0.8)
 
-    a.shape(chaikin([(m - 92, m - 8), (m - 60, m - 40), (m + 60, m - 40), (m + 92, m - 8), (m + 70, m + 100), (m - 70, m + 100)], True, 2), MARBLE, depth=12, light_k=0.4, detail=robe_folds)
-    a.shape(ellipse(m, m - 26, 34, 32, 40), tint(MARBLE, 0.15), outline=DETAIL * 1.4, depth=6, light_k=0.5)
-    # Hands holding a sword point-down in front.
-    a.shape(rect(m - 6, m + 10, m + 6, m + 110), rgb("#b9bec6"), outline=DETAIL, corner=3, depth=3, mottle=0)
-    a.shape(rect(m - 26, m + 4, m + 26, m + 14), rgb("#b9bec6"), outline=DETAIL, corner=3, depth=2, mottle=0)
+    a.shape(ellipse(m, m + 22, 92, 62, 64), shade(MARBLE, 0.06), depth=10, light_k=0.3, detail=folds)
+    # Sword: blade pointing toward the viewer, crossguard, grip under the hands.
+    a.shape(rect(m - 7, m + 52, m + 7, m + 116), rgb("#b9bec6"), outline=DETAIL, corner=3, depth=3, mottle=0)
+    a.shape(rect(m - 30, m + 46, m + 30, m + 56), rgb("#b9bec6"), outline=DETAIL, corner=3, depth=2, mottle=0)
+    a.shape(ellipse(m, m - 6, 82, 42, 56), MARBLE, outline=OUTLINE, depth=10, light_k=0.45)
+    for side in (-1, 1):
+        arm = chaikin([(m + side * 80, m - 14), (m + side * 88, m + 16), (m + side * 56, m + 46), (m + side * 18, m + 52), (m + side * 14, m + 34), (m + side * 46, m + 26), (m + side * 60, m - 4)], True, 2)
+        a.shape(arm, tint(MARBLE, 0.1), outline=DETAIL * 1.3, corner=0, depth=6, light_k=0.4)
+    a.shape(ellipse(m, m + 42, 18, 13, 28), tint(MARBLE, 0.14), outline=DETAIL * 1.2, depth=4, light_k=0.4)
+    a.shape(ellipse(m, m - 14, 30, 30, 40), tint(MARBLE, 0.16), outline=DETAIL * 1.4, depth=6, light_k=0.5)
+    a.ink(chaikin([(m - 18, m - 30), (m, m - 38), (m + 18, m - 30)], False, 2), FINE * 1.2, color=shade(MARBLE, 0.4), alpha=0.7)
     return a.image()
-
 
 def altar(seed=206):
     w, h = 400, 240
@@ -377,18 +384,45 @@ def throne_dais(seed=223):
 
 
 def stone_lion(seed=224):
-    w, h = 260, 340
+    """A stone lion lying like a sphinx, seen from above: front paws stretched
+    forward either side of its head, the mane around the head, back and
+    haunches behind, the tail curled beside them; all on a plinth."""
+    w, h = 260, 380
     a = Art(w, h, seed)
-    stone_block(a, rect(14, 14, w - 14, h - 14), DARK_STONE, corner=8, cracks=0)
     cx = w / 2
-    body = chaikin([(cx - 60, 120), (cx - 70, 260), (cx - 40, h - 40), (cx + 40, h - 40), (cx + 70, 260), (cx + 60, 120)], True, 2)
-    stone_block(a, body, LIGHT_STONE, outline=DETAIL * 1.4, cracks=0, light_k=0.4)
-    mane = scallop(cx, 110, 62, a.rng, 12, 0.14)
-    a.shape(mane, GREY, outline=DETAIL * 1.4, corner=0, depth=8, light_k=0.4)
-    a.shape(ellipse(cx, 100, 34, 36, 36), LIGHT_STONE, outline=DETAIL * 1.2, depth=6, light_k=0.4)
-    for dx in (-12, 12):
-        dot(a, cx + dx, 92, 3.4)
-    a.shape(ellipse(cx, 116, 9, 6, 16), shade(LIGHT_STONE, 0.3), outline=FINE, depth=1, mottle=0)
+    stone_block(a, rect(12, 12, w - 12, h - 12), DARK_STONE, corner=8, cracks=0)
+    stone = LIGHT_STONE
+    # Tail first (under), then the paws, body, haunches, mane and head.
+    a.ink(chaikin([(cx + 50, h - 70), (cx + 86, h - 60), (cx + 92, h - 110), (cx + 76, h - 150)], False, 2), DETAIL * 3.2, color=INK)
+    a.ink(chaikin([(cx + 50, h - 70), (cx + 86, h - 60), (cx + 92, h - 110), (cx + 76, h - 150)], False, 2), DETAIL * 2.0, color=stone)
+    for side in (-1, 1):
+        paw = chaikin([(cx + side * 30, 150), (cx + side * 34, 50), (cx + side * 66, 40), (cx + side * 76, 60), (cx + side * 74, 150)], True, 2)
+        a.shape(paw, stone, outline=DETAIL * 1.3, corner=0, depth=6, light_k=0.35)
+        for k in (-1, 0, 1):
+            a.ink([(cx + side * 52 + k * 9, 46), (cx + side * 52 + k * 9, 58)], FINE * 1.2, color=shade(stone, 0.5))
+
+    def spine(art, path):
+        art.ink([(cx, 170), (cx + 2, 250), (cx, h - 80)], FINE * 1.4, color=shade(stone, 0.45), alpha=0.8)
+        for y in (200, 240, 280):
+            art.ink([(cx - 50, y), (cx - 30, y + 6)], FINE, color=shade(stone, 0.45), alpha=0.6)
+            art.ink([(cx + 50, y), (cx + 30, y + 6)], FINE, color=shade(stone, 0.45), alpha=0.6)
+
+    body = chaikin([(cx - 62, 150), (cx - 70, 240), (cx - 80, h - 80), (cx - 40, h - 34), (cx + 40, h - 34), (cx + 80, h - 80), (cx + 70, 240), (cx + 62, 150)], True, 2)
+    stone_block(a, body, stone, outline=DETAIL * 1.4, cracks=0, light_k=0.35)
+    a.shape(rect(cx - 80, 150, cx + 80, h - 34), stone, outline=0, corner=40, depth=1, shade_k=0, light_k=0, ao=0, mottle=0, detail=None) if False else None
+    with a.clip(skia.Path()):
+        pass
+    a.shape(body, stone, outline=0, corner=0, depth=1, shade_k=0, light_k=0, ao=0, mottle=0, detail=spine)
+    for side in (-1, 1):
+        a.shape(ellipse(cx + side * 54, h - 92, 34, 44, 40), tint(stone, 0.06), outline=DETAIL * 1.2, depth=6, light_k=0.35)
+    mane = scallop(cx, 130, 66, a.rng, 13, 0.14)
+    a.shape(mane, GREY, outline=DETAIL * 1.4, corner=0, depth=10, light_k=0.4, detail=lambda art, p: [art.ink([(cx + 30 * math.cos(t), 130 + 30 * math.sin(t)), (cx + 60 * math.cos(t), 130 + 60 * math.sin(t))], FINE * 1.1, color=shade(GREY, 0.45), alpha=0.7) for t in [2 * math.pi * i / 16 for i in range(16)]])
+    # Head from above: crown, ears, the muzzle pointing forward (up).
+    a.shape(chaikin([(cx - 34, 128), (cx - 30, 92), (cx - 16, 64), (cx + 16, 64), (cx + 30, 92), (cx + 34, 128), (cx, 142)], True, 2), stone, outline=DETAIL * 1.3, corner=0, depth=6, light_k=0.4)
+    for side in (-1, 1):
+        a.shape(ellipse(cx + side * 30, 120, 9, 8, 16), shade(stone, 0.15), outline=DETAIL, depth=2, mottle=0)
+    a.shape(ellipse(cx, 62, 12, 8, 20), shade(stone, 0.25), outline=FINE * 1.2, depth=2, mottle=0)
+    a.ink([(cx - 14, 92), (cx, 100), (cx + 14, 92)], FINE * 1.2, color=shade(stone, 0.5), alpha=0.8)
     return a.image()
 
 
