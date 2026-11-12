@@ -383,18 +383,34 @@ def street_lamp(seed=1042):
 
 
 def gallows(seed=1043):
-    w, h = 360, 360
+    """A gallows from above: the plank platform with its trapdoor, steps
+    leading down from one side, the post's top at the back, the beam running
+    over the trapdoor (casting its shadow on the planks) and the noose hanging
+    straight down under its end."""
+    w, h = 400, 400
     a = Art(w, h, seed)
-    board(a, 20, 60, w - 20, h - 20, WOOD_DARK, n=5, vertical=True, corner=6)
-    a.shape(rect(w / 2 - 50, h - 120, w / 2 + 50, h - 40), shade(WOOD_DARK, 0.4), outline=DETAIL * 1.2, corner=3, depth=6, shade_k=0, light_k=0, ao=0.5)  # trap door
+    px0, py0, px1, py1 = 30, 20, w - 30, h - 120
+    # Steps down toward the viewer (each lower one a bit darker).
     for k in range(4):
-        a.shape(rect(w / 2 - 60, 20 + k * 12, w / 2 + 60, 30 + k * 12), WOOD, outline=DETAIL, corner=2, depth=2)  # steps
-    a.shape(rect(30, 80, 64, 114), WOOD, outline=DETAIL * 1.3, corner=4, depth=4)  # upright
-    a.shape(rect(30, 84, w / 2 + 14, 110), WOOD, outline=DETAIL * 1.3, corner=4, depth=5, light_k=0.4)  # beam
-    a.ink([(w / 2, 110), (w / 2, h - 80)], DETAIL * 1.4, color=ROPE)
-    a.ink(ellipse(w / 2, h - 70, 14, 14, 24), DETAIL * 1.4, closed=True, color=ROPE)
+        y = py1 + k * 24
+        a.shape(rect(w / 2 - 60, y, w / 2 + 60, y + 26), shade(WOOD, 0.06 * k), outline=DETAIL * 1.2, corner=3, depth=3)
+    board(a, px0, py0, px1, py1, WOOD_DARK, n=6, vertical=True, corner=6)
+    cx, cy = w / 2 + 20, (py0 + py1) / 2 + 20
+    a.shape(rect(cx - 50, cy - 50, cx + 50, cy + 50), shade(WOOD_DARK, 0.25), outline=DETAIL * 1.3, corner=3, depth=4, shade_k=0.3, light_k=0, ao=0.3, detail=lambda art, p: boards(art, cx - 50, cy - 50, cx + 50, cy + 50, shade(WOOD_DARK, 0.25), 3, vertical=True, grain=False))
+    a.ink([(cx, cy - 50), (cx, cy + 50)], DETAIL * 1.2, alpha=0.9, taper=False)
+    # Post (its top) at the back-left; the beam from it to above the trapdoor.
+    post = rect(px0 + 22, cy - 18, px0 + 58, cy + 18)
+    beam = rect(px0 + 30, cy - 11, cx + 16, cy + 11)
+    shadow = skia.Path()
+    shadow.addPoly([(x + 14, y + 22) for x, y in beam], True)
+    with a.clip(to_path(rect(px0, py0, px1, py1))):
+        a.fill_path(shadow, INK, 0.35, blur=6)
+    # The noose under the beam's end.
+    a.ink(ellipse(cx + 2, cy + 16, 13, 13, 24), DETAIL * 1.6, closed=True, color=ROPE)
+    a.shape(post, WOOD, outline=DETAIL * 1.4, corner=4, depth=4, light_k=0.5)
+    a.shape(beam, tint(WOOD, 0.08), outline=DETAIL * 1.4, corner=3, depth=4, light_k=0.5)
+    a.shape([(px0 + 52, cy + 10), (px0 + 100, cy + 10), (px0 + 52, cy + 40)], WOOD, outline=DETAIL * 1.2, corner=2, depth=2)  # brace
     return a.image()
-
 
 def chicken_coop(seed=1044):
     w, h = 300, 240
