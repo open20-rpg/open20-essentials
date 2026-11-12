@@ -389,22 +389,22 @@ def stone_lion(seed=224):
     lines inside: the mane's edge, the face, spine, haunch curves, toes."""
     from pen import to_path
 
-    w, h = 260, 340
+    w, h = 260, 400
     a = Art(w, h, seed)
     cx = w / 2
     stone_block(a, rect(12, 12, w - 12, h - 12), DARK_STONE, corner=8, cracks=0)
     stone = LIGHT_STONE
     # The tail, curled along the right flank (under the body).
-    tail = chaikin([(cx + 20, h - 40), (cx + 80, h - 42), (cx + 96, h - 90), (cx + 90, h - 130)], False, 2)
+    tail = chaikin([(cx + 20, h - 42), (cx + 74, h - 44), (cx + 88, h - 96), (cx + 76, h - 150)], False, 2)
     a.ink(tail, DETAIL * 3.4, color=INK, taper=False)
     a.ink(tail, DETAIL * 2.0, color=stone, taper=False)
-    a.shape(scallop(cx + 90, h - 136, 11, a.rng, 6, 0.2), GREY, outline=DETAIL, corner=0, depth=2, mottle=0)
+    a.shape(scallop(cx + 76, h - 156, 11, a.rng, 6, 0.2), GREY, outline=DETAIL, corner=0, depth=2, mottle=0)
     parts = [
         chaikin(rect(cx - 62, 30, cx - 32, 170), True, 3),  # forelegs
         chaikin(rect(cx + 32, 30, cx + 62, 170), True, 3),
         ellipse(cx - 50, 34, 22, 16, 28),  # paws
         ellipse(cx + 50, 34, 22, 16, 28),
-        chaikin([(cx - 64, 170), (cx - 60, 214), (cx - 74, h - 92), (cx - 76, h - 58), (cx - 46, h - 32), (cx + 46, h - 32), (cx + 76, h - 58), (cx + 74, h - 92), (cx + 60, 214), (cx + 64, 170)], True, 3),  # body: waist, then haunches
+        chaikin([(cx - 50, 170), (cx - 44, 240), (cx - 64, h - 110), (cx - 70, h - 64), (cx - 44, h - 34), (cx + 44, h - 34), (cx + 70, h - 64), (cx + 64, h - 110), (cx + 44, 240), (cx + 50, 170)], True, 3),  # body: slim waist, then haunches
 
     ]
     body = to_path(parts[0])
@@ -426,7 +426,7 @@ def stone_lion(seed=224):
         a.ink([(cx, 230), (cx + 2, h - 90), (cx, h - 50)], FINE * 1.4, color=line, alpha=0.75)
         for side in (-1, 1):
             # Hind legs folded along the flanks.
-            a.ink(chaikin([(cx + side * 30, h - 120), (cx + side * 62, h - 112), (cx + side * 66, h - 56)], False, 2), FINE * 1.3, color=line, alpha=0.7)
+            a.ink(chaikin([(cx + side * 28, h - 130), (cx + side * 56, h - 120), (cx + side * 60, h - 60)], False, 2), FINE * 1.3, color=line, alpha=0.7)
     a.stroke_path(body, INK, OUTLINE * 0.9)
     # The mane on top: its own outlined shape, strokes radiating; then the head.
     mane = scallop(cx, 150, 78, a.rng, 15, 0.1)
