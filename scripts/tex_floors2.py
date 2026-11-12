@@ -7,12 +7,34 @@ import math
 import numpy as np
 
 from floors import crack, inset, speckles, split, voronoi_cells
-from pen import DETAIL, FINE, INK, Art, blob, chaikin, ellipse, mix, rect, rgb, shade, tint, to_path, vary
+from pen import DETAIL, FINE, INK, JOINT, JOINT_ALPHA, Art, grout, joint_color, blob, chaikin, ellipse, mix, rect, rgb, shade, tint, to_path, vary
 from tex_ground import S2, ashlar, brick_floor, carpet_floor, cobbles, dot, flag_floor, herringbone, parquet, planks, tiles
 
 
 def rgbs(cols):
     return [rgb(c) for c in cols]
+
+
+def _rgb(c):
+    return rgb(c) if isinstance(c, str) else tuple(c)
+
+
+def _lum(c):
+    return 0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2]
+
+
+def soft_gap(gap, tones):
+    """Joint background close to the pieces' tone: a dark `gap` only nudges it
+    darker, a light mortar pulls it lighter. Never a near-black trench."""
+    cols = [_rgb(t) for t in tones]
+    base = tuple(sum(c[i] for c in cols) / len(cols) for i in range(3))
+    g = _rgb(gap)
+    return grout(base, g) if _lum(g) > _lum(base) else mix(grout(base), g, 0.15)
+
+
+def J(c, k=1.0):
+    """Thin, tone-on-tone joint outline for a piece of colour `c`."""
+    return dict(outline=JOINT * k, outline_color=joint_color(c), outline_alpha=JOINT_ALPHA)
 
 
 # ---------------------------------------------------------------------------------------------------
@@ -47,8 +69,13 @@ def wood_floor(seed, tones, gap="#3b271b", rows=8, vertical=False, nails=True, w
     """Planks running across (or down) the tile. `paint` is drawn over the
     wood and worn through in patches by `wear`."""
     s = S2
-    a = Art(s, s, seed, tile=True, bg=rgb(gap))
+    # Wide gaps (boardwalks) are real openings onto what's beneath; narrow
+    # ones are just joints between boards.
+    open_gaps = gap_w >= 4
+    a = Art(s, s, seed, tile=True, bg=rgb(gap) if open_gaps else soft_gap(gap, tones))
     tones = rgbs(tones)
+    if not open_gaps:
+        gap_w = 0.8
     h = s / rows
     for r in range(rows):
         y = r * h
@@ -80,7 +107,7 @@ def wood_floor(seed, tones, gap="#3b271b", rows=8, vertical=False, nails=True, w
                         L = art.rng.uniform(6, 18)
                         art.ink([(wx, wy), (wx + L, wy + art.rng.uniform(-2, 2))], FINE * 0.7, color=tint(c, 0.4), alpha=0.6, wob=0.2)
 
-            a.shape(box, c, outline=2.6, corner=2.5, wob=0.5, depth=4, shade_k=0.45, light_k=0.3, ao=0.2, mottle=0.05, detail=detail)
+            a.shape(box, c, **J(c), corner=1.5, wob=0.4, depth=3, shade_k=0.35, light_k=0.25, ao=0.12, mottle=0.05, detail=detail)
             for e in (x + 9, x + ln - 9):
                 for f in (y + h * 0.3, y + h * 0.7) if h > 40 else (y + h * 0.5,):
                     px, py = (f, e) if vertical else (e, f)
@@ -88,7 +115,7 @@ def wood_floor(seed, tones, gap="#3b271b", rows=8, vertical=False, nails=True, w
                         dot(a, px, py, 3.4, rgb("#4a4a50"), 0.95)
                         dot(a, px - 0.8, py - 0.8, 1.3, rgb("#a0a0a8"), 0.9)
                     elif nails:
-                        dot(a, px, py, 2.2, INK, 0.85)
+                        dot(a, px, py, 2.0, shade(c, 0.6), 0.7)
             x += ln
     return a.image()
 
@@ -97,7 +124,7 @@ def herringbone45(seed, tones, gap="#3b271b", k=8):
     """Herringbone rotated 45° (the classic look): bricks laid along the
     diagonals, periodic over the tile."""
     s = S2
-    a = Art(s, s, seed, tile=True, bg=rgb(gap))
+    a = Art(s, s, seed, tile=True, bg=soft_gap(gap, tones))
     tones = rgbs(tones)
     u = s / (math.sqrt(2) * k)
     c45 = math.cos(math.pi / 4)
@@ -111,7 +138,7 @@ def herringbone45(seed, tones, gap="#3b271b", k=8):
         for j in range(-n, n):
             x, y = (i - 2 * j) * u, (i + 2 * j) * u
             for bx, by, w, h in ((x, y, 2 * u, u), (x, y + u, u, 2 * u)):
-                pts = [rot(px, py) for px, py in ((bx + 1.4, by + 1.4), (bx + w - 1.4, by + 1.4), (bx + w - 1.4, by + h - 1.4), (bx + 1.4, by + h - 1.4))]
+                pts = [rot(px, py) for px, py in ((bx + 0.7, by + 0.7), (bx + w - 0.7, by + 0.7), (bx + w - 0.7, by + h - 0.7), (bx + 0.7, by + h - 0.7))]
                 cx = sum(p[0] for p in pts) / 4
                 cy = sum(p[1] for p in pts) / 4
                 if not (-u * 2 < cx < s + u * 2 and -u * 2 < cy < s + u * 2):
@@ -121,14 +148,14 @@ def herringbone45(seed, tones, gap="#3b271b", k=8):
                     continue
                 seen.add(key)
                 c = vary(a.rng, a.rng.choice(tones), 0.04)
-                a.shape(pts, c, outline=2.3, corner=1.5, wob=0.3, depth=3, shade_k=0.4, light_k=0.3, ao=0.15, mottle=0.03)
+                a.shape(pts, c, **J(c), corner=1.2, wob=0.3, depth=3, shade_k=0.35, light_k=0.25, ao=0.1, mottle=0.03)
     return a.image()
 
 
 def chevron(seed, tones, gap="#3b271b", rows=8, cols=4):
     """Chevron parquet: planks cut at an angle, meeting in V's down columns."""
     s = S2
-    a = Art(s, s, seed, tile=True, bg=rgb(gap))
+    a = Art(s, s, seed, tile=True, bg=soft_gap(gap, tones))
     tones = rgbs(tones)
     cw = s / cols
     h = s / rows
@@ -143,9 +170,9 @@ def chevron(seed, tones, gap="#3b271b", rows=8, cols=4):
                     pts = [(xa, y + slope), (xb, y), (xb, y + h), (xa, y + h + slope)]
                 else:
                     pts = [(xa, y), (xb, y + slope), (xb, y + h + slope), (xa, y + h)]
-                pts = inset(pts, 1.8)
+                pts = inset(pts, 0.9)
                 c = vary(a.rng, a.rng.choice(tones), 0.04)
-                a.shape(pts, c, outline=2.3, corner=1.5, wob=0.3, depth=3, shade_k=0.4, light_k=0.3, ao=0.15, mottle=0.03)
+                a.shape(pts, c, **J(c), corner=1.2, wob=0.3, depth=3, shade_k=0.35, light_k=0.25, ao=0.1, mottle=0.03)
     return a.image()
 
 
@@ -153,7 +180,7 @@ def square_parquet(seed, tones, gap="#3b271b", n=4, strips=3, border=None):
     """Parquet of square blocks, each made of strips, alternating direction,
     optionally with a dark frame strip around each block."""
     s = S2
-    a = Art(s, s, seed, tile=True, bg=rgb(gap))
+    a = Art(s, s, seed, tile=True, bg=soft_gap(gap, tones))
     tones = rgbs(tones)
     cell = s / n
     for bi in range(n):
@@ -161,7 +188,8 @@ def square_parquet(seed, tones, gap="#3b271b", n=4, strips=3, border=None):
             x0, y0 = bi * cell, bj * cell
             inner = 0
             if border:
-                a.shape(rect(x0 + 1.5, y0 + 1.5, x0 + cell - 1.5, y0 + cell - 1.5), vary(a.rng, rgb(border), 0.03), outline=2.3, corner=2, wob=0.3, depth=3, shade_k=0.4, light_k=0.3, ao=0.15, mottle=0.03)
+                bc = vary(a.rng, rgb(border), 0.03)
+                a.shape(rect(x0 + 0.8, y0 + 0.8, x0 + cell - 0.8, y0 + cell - 0.8), bc, **J(bc), corner=1.5, wob=0.3, depth=3, shade_k=0.35, light_k=0.25, ao=0.1, mottle=0.03)
                 inner = cell * 0.12
             horizontal = (bi + bj) % 2 == 0
             span = cell - 2 * inner
@@ -171,7 +199,7 @@ def square_parquet(seed, tones, gap="#3b271b", n=4, strips=3, border=None):
                 else:
                     x, y, w, hh = x0 + inner + k * span / strips, y0 + inner, span / strips, span
                 c = vary(a.rng, a.rng.choice(tones), 0.04)
-                a.shape(rect(x + 1.5, y + 1.5, x + w - 1.5, y + hh - 1.5), c, outline=2.2, corner=2, wob=0.3, depth=3, shade_k=0.4, light_k=0.3, ao=0.15, mottle=0.03)
+                a.shape(rect(x + 0.8, y + 0.8, x + w - 0.8, y + hh - 0.8), c, **J(c), corner=1.5, wob=0.3, depth=3, shade_k=0.35, light_k=0.25, ao=0.1, mottle=0.03)
     return a.image()
 
 
@@ -187,7 +215,7 @@ def boardwalk(seed, tones=("#9a7652", "#8c6a48", "#a8825c"), under="#22303a"):
 def log_floor(seed, tones=("#8a6440", "#7a5838", "#94704a")):
     """Split logs laid side by side: rounded ends, bark edges."""
     s = S2
-    a = Art(s, s, seed, tile=True, bg=rgb("#2a1d14"))
+    a = Art(s, s, seed, tile=True, bg=soft_gap("#2a1d14", tones))
     tones = rgbs(tones)
     rows = 8
     h = s / rows
@@ -201,7 +229,7 @@ def log_floor(seed, tones=("#8a6440", "#7a5838", "#94704a")):
                 plank_grain(art, x, y, ln, h, c, knots=0.6)
                 art.ink([(x + 6, y + 5), (x + ln - 6, y + 5)], DETAIL, color=shade(c, 0.5), alpha=0.6, wob=0.6)
 
-            a.shape(rect(x + 2, y + 2, x + ln - 2, y + h - 2), c, outline=2.8, corner=h * 0.45, wob=0.8, depth=5, shade_k=0.5, light_k=0.3, ao=0.25, mottle=0.06, detail=detail)
+            a.shape(rect(x + 1.2, y + 1.2, x + ln - 1.2, y + h - 1.2), c, **J(c, 1.3), corner=h * 0.45, wob=0.8, depth=4, shade_k=0.45, light_k=0.3, ao=0.18, mottle=0.06, detail=detail)
             x += ln
     return a.image()
 
@@ -214,13 +242,13 @@ def log_floor(seed, tones=("#8a6440", "#7a5838", "#94704a")):
 def flagstones2(seed, base, alt, mortar, n=5, cracks=0.4, moss=0.0, missing=0.0, rounded=10, jitter=0.3, earth="#6e5a44"):
     """Irregular flagstones with optional moss and missing stones (dirt)."""
     s = S2
-    a = Art(s, s, seed, tile=True, bg=rgb(mortar))
+    a = Art(s, s, seed, tile=True, bg=soft_gap(mortar, [base, *alt]))
     base = rgb(base)
     moss_c = rgb("#6f8a45")
     for (cx, cy), poly in voronoi_cells(s, s, n, n, a.rng, jitter):
-        p = inset(poly, 4.5)
+        p = inset(poly, 2.0)
         if a.rng.random() < missing:
-            a.shape(chaikin(p, True, 2), rgb(earth), outline=2.0, corner=0, wob=0.8, depth=6, shade_k=0.0, light_k=0.0, ao=0.6, mottle=0.1, detail=lambda art, path: speckles(art, path, shade(rgb(earth), 0.4), 30, (0.8, 2.0)))
+            a.shape(chaikin(p, True, 2), rgb(earth), **J(rgb(earth), 1.2), corner=0, wob=0.8, depth=6, shade_k=0.0, light_k=0.0, ao=0.6, mottle=0.1, detail=lambda art, path: speckles(art, path, shade(rgb(earth), 0.4), 30, (0.8, 2.0)))
             continue
         c = vary(a.rng, mix(base, rgb(alt[0]) if a.rng.random() < 0.5 else rgb(alt[1]), a.rng.uniform(0.2, 0.7)), 0.03)
 
@@ -237,13 +265,13 @@ def flagstones2(seed, base, alt, mortar, n=5, cracks=0.4, moss=0.0, missing=0.0,
                     for _ in range(5):
                         dot(art, mx + art.rng.uniform(-14, 14), my + art.rng.uniform(-10, 10), 2, shade(moss_c, 0.4), 0.7)
 
-        a.shape(p, c, outline=3.6, corner=rounded, wob=1.0, depth=7, shade_k=0.55, light_k=0.4, ao=0.3, detail=detail)
+        a.shape(p, c, **J(c, 1.2), corner=min(rounded, 8), wob=0.8, depth=5, shade_k=0.45, light_k=0.3, ao=0.18, detail=detail)
     return a.image()
 
 
 def ashlar2(seed, base, mortar, rows=6, cracks=0.3, moss=0.0, lo=1.1, hi=1.9):
     s = S2
-    a = Art(s, s, seed, tile=True, bg=rgb(mortar))
+    a = Art(s, s, seed, tile=True, bg=soft_gap(mortar, base))
     h = s / rows
     moss_c = rgb("#6f8a45")
     for r in range(rows):
@@ -258,7 +286,7 @@ def ashlar2(seed, base, mortar, rows=6, cracks=0.3, moss=0.0, lo=1.1, hi=1.9):
                 if moss and art.rng.random() < moss:
                     art.fill_path(to_path(blob(x + art.rng.uniform(0, w), r * h + art.rng.choice((4, h - 4)), art.rng.uniform(16, 28), art.rng, 9, 0.4)), vary(art.rng, moss_c, 0.08), 0.85)
 
-            a.shape(rect(x + 3, r * h + 3, x + w - 3, r * h + h - 3), c, outline=3.4, corner=6, wob=1.0, depth=7, shade_k=0.6, light_k=0.35, ao=0.3, detail=detail)
+            a.shape(rect(x + 1.5, r * h + 1.5, x + w - 1.5, r * h + h - 1.5), c, **J(c, 1.2), corner=4, wob=0.8, depth=5, shade_k=0.45, light_k=0.3, ao=0.18, detail=detail)
             x += w
     return a.image()
 
@@ -266,32 +294,32 @@ def ashlar2(seed, base, mortar, rows=6, cracks=0.3, moss=0.0, lo=1.1, hi=1.9):
 def square_stones(seed, base, mortar, n=4, grid_jitter=6, cracks=0.4):
     """Large square slabs on a grid (paving / temple floors)."""
     s = S2
-    a = Art(s, s, seed, tile=True, bg=rgb(mortar))
+    a = Art(s, s, seed, tile=True, bg=soft_gap(mortar, base))
     cell = s / n
     for i in range(n):
         for j in range(n):
             x0, y0 = i * cell, j * cell
             c = vary(a.rng, mix(rgb(base[0]), rgb(base[1]), a.rng.random()), 0.03)
-            pts = [(px + a.rng.uniform(-grid_jitter, grid_jitter) * 0.3, py + a.rng.uniform(-grid_jitter, grid_jitter) * 0.3) for px, py in rect(x0 + 4, y0 + 4, x0 + cell - 4, y0 + cell - 4)]
+            pts = [(px + a.rng.uniform(-grid_jitter, grid_jitter) * 0.3, py + a.rng.uniform(-grid_jitter, grid_jitter) * 0.3) for px, py in rect(x0 + 2, y0 + 2, x0 + cell - 2, y0 + cell - 2)]
 
             def detail(art, path, x0=x0, y0=y0, c=c):
                 speckles(art, path, shade(c, 0.45), 20)
                 if art.rng.random() < cracks:
                     crack(art, x0 + cell * art.rng.uniform(0.3, 0.7), y0 + cell * art.rng.uniform(0.3, 0.7), art.rng.uniform(0, 6.28), cell * 0.4)
 
-            a.shape(pts, c, outline=3.4, corner=6, wob=0.8, depth=7, shade_k=0.55, light_k=0.4, ao=0.3, detail=detail)
+            a.shape(pts, c, **J(c, 1.2), corner=4, wob=0.7, depth=5, shade_k=0.45, light_k=0.3, ao=0.18, detail=detail)
     return a.image()
 
 
 def river_stones(seed, cols, mortar="#6b6252", n=12):
     """Rounded river pebbles packed tight in mortar."""
     s = S2
-    a = Art(s, s, seed, tile=True, bg=rgb(mortar))
+    a = Art(s, s, seed, tile=True, bg=soft_gap(mortar, cols))
     cols = rgbs(cols)
     for (cx, cy), poly in voronoi_cells(s, s, n, n, a.rng, 0.45):
-        p = chaikin(chaikin(inset(poly, 5), True, 2), True, 1)
+        p = chaikin(chaikin(inset(poly, 3), True, 2), True, 1)
         c = vary(a.rng, a.rng.choice(cols), 0.06)
-        a.shape(p, c, outline=2.6, corner=0, wob=0.4, depth=4, shade_k=0.55, light_k=0.55, ao=0.2)
+        a.shape(p, c, **J(c, 1.2), corner=0, wob=0.4, depth=4, shade_k=0.45, light_k=0.45, ao=0.15)
     return a.image()
 
 
@@ -321,7 +349,7 @@ def lava_rock(seed):
 
 def hex_tiles(seed, cols, grout, cols_n=6):
     s = S2
-    a = Art(s, s, seed, tile=True, bg=rgb(grout))
+    a = Art(s, s, seed, tile=True, bg=soft_gap(grout, cols))
     cols = rgbs(cols)
     w = s / cols_n
     r = w / math.sqrt(3)
@@ -333,27 +361,29 @@ def hex_tiles(seed, cols, grout, cols_n=6):
         for i in range(cols_n):
             cx = i * w + (w / 2 if j % 2 else 0)
             cy = j * 1.5 * r
-            rr = min(r, w / math.sqrt(3)) - 3
+            rr = min(r, w / math.sqrt(3)) - 1.5
             pts = [(cx + rr * math.cos(math.pi / 6 + k * math.pi / 3), cy + rr * math.sin(math.pi / 6 + k * math.pi / 3)) for k in range(6)]
             pts = [(cx + (x - cx) * 1.0, cy + (y - cy) * 1.0) for x, y in pts]
             c = vary(a.rng, a.rng.choice(cols), 0.04)
-            a.shape(pts, c, outline=2.6, corner=3, wob=0.4, depth=4, shade_k=0.45, light_k=0.35, ao=0.2)
+            a.shape(pts, c, **J(c), corner=2, wob=0.3, depth=3, shade_k=0.4, light_k=0.3, ao=0.12)
     return a.image()
 
 
 def octagon_dot(seed, oct_c, dot_c, grout, n=4):
     s = S2
-    a = Art(s, s, seed, tile=True, bg=rgb(grout))
+    a = Art(s, s, seed, tile=True, bg=soft_gap(grout, [oct_c]))
     cell = s / n
     k = cell * 0.29
     for i in range(n):
         for j in range(n):
             x0, y0 = i * cell, j * cell
             pts = [(x0 + k, y0 + 3), (x0 + cell - k, y0 + 3), (x0 + cell - 3, y0 + k), (x0 + cell - 3, y0 + cell - k), (x0 + cell - k, y0 + cell - 3), (x0 + k, y0 + cell - 3), (x0 + 3, y0 + cell - k), (x0 + 3, y0 + k)]
-            a.shape(pts, vary(a.rng, rgb(oct_c), 0.04), outline=2.6, corner=2, wob=0.4, depth=4, shade_k=0.45, light_k=0.35, ao=0.2)
+            oc = vary(a.rng, rgb(oct_c), 0.04)
+            a.shape(pts, oc, **J(oc), corner=2, wob=0.3, depth=3, shade_k=0.4, light_k=0.3, ao=0.12)
             d = k * 0.95
             sq = [(x0, y0 - d + 3), (x0 + d - 3, y0), (x0, y0 + d - 3), (x0 - d + 3, y0)]
-            a.shape(sq, vary(a.rng, rgb(dot_c), 0.04), outline=2.2, corner=1.5, wob=0.3, depth=2, shade_k=0.4, light_k=0.3, ao=0.1)
+            dc = vary(a.rng, rgb(dot_c), 0.04)
+            a.shape(sq, dc, **J(dc), corner=1.5, wob=0.3, depth=2, shade_k=0.35, light_k=0.25, ao=0.08)
     return a.image()
 
 
@@ -361,7 +391,7 @@ def glazed_tiles(seed, cols, grout, n=8):
     """Glossy tiles: each with a white glint at its top-left and a slight
     color variation between tiles."""
     s = S2
-    a = Art(s, s, seed, tile=True, bg=rgb(grout))
+    a = Art(s, s, seed, tile=True, bg=soft_gap(grout, cols))
     cols = rgbs(cols)
     cell = s / n
     for i in range(n):
@@ -372,14 +402,14 @@ def glazed_tiles(seed, cols, grout, n=8):
             def glint(art, path, x0=x0, y0=y0):
                 art.ink([(x0 + 10, y0 + cell * 0.45), (x0 + 10, y0 + 10), (x0 + cell * 0.45, y0 + 10)], FINE * 1.4, color=(250, 250, 245), alpha=0.7, wob=0.1)
 
-            a.shape(rect(x0 + 3, y0 + 3, x0 + cell - 3, y0 + cell - 3), c, outline=2.6, corner=6, wob=0.3, depth=5, shade_k=0.45, light_k=0.45, ao=0.2, mottle=0.02, detail=glint)
+            a.shape(rect(x0 + 1.8, y0 + 1.8, x0 + cell - 1.8, y0 + cell - 1.8), c, **J(c), corner=4, wob=0.3, depth=4, shade_k=0.4, light_k=0.4, ao=0.12, mottle=0.02, detail=glint)
     return a.image()
 
 
 def mosaic2(seed, cols, grout, n=16, motif="ring"):
     """Small-tile mosaics with a repeating motif every 8 cells."""
     s = S2
-    a = Art(s, s, seed, tile=True, bg=rgb(grout))
+    a = Art(s, s, seed, tile=True, bg=soft_gap(grout, cols))
     cols = rgbs(cols)
     cell = s / n
     for i in range(n):
@@ -396,25 +426,26 @@ def mosaic2(seed, cols, grout, n=16, motif="ring"):
                 d = max(abs(u), abs(v))
             idx = int(d) % len(cols)
             c = vary(a.rng, cols[idx], 0.06)
-            a.shape(rect(x0 + 2.4, y0 + 2.4, x0 + cell - 2.4, y0 + cell - 2.4), c, outline=1.8, corner=2, wob=0.4, depth=2, shade_k=0.4, light_k=0.3, ao=0.1, mottle=0)
+            a.shape(rect(x0 + 1.4, y0 + 1.4, x0 + cell - 1.4, y0 + cell - 1.4), c, **J(c, 0.9), corner=1.5, wob=0.3, depth=2, shade_k=0.35, light_k=0.25, ao=0.08, mottle=0)
     return a.image()
 
 
 def random_mosaic(seed, cols, grout, n=8):
     """Irregular stone mosaic (opus incertum): small voronoi pieces."""
     s = S2
-    a = Art(s, s, seed, tile=True, bg=rgb(grout))
+    a = Art(s, s, seed, tile=True, bg=soft_gap(grout, cols))
     cols = rgbs(cols)
     for (cx, cy), poly in voronoi_cells(s, s, n * 2, n * 2, a.rng, 0.4):
-        p = inset(poly, 2.2)
-        a.shape(p, vary(a.rng, a.rng.choice(cols), 0.05), outline=1.8, corner=2, wob=0.3, depth=2, shade_k=0.4, light_k=0.35, ao=0.1, mottle=0)
+        p = inset(poly, 1.4)
+        c = vary(a.rng, a.rng.choice(cols), 0.05)
+        a.shape(p, c, **J(c, 0.9), corner=2, wob=0.3, depth=2, shade_k=0.35, light_k=0.3, ao=0.08, mottle=0)
     return a.image()
 
 
 def cathedral_marble(seed, light="#e6e0d4", dark="#5a4e48", accent="#a8483a", grout="#2c2a2f"):
     """Large marble squares with a smaller rotated inlay square in each."""
     s = S2
-    a = Art(s, s, seed, tile=True, bg=rgb(grout))
+    a = Art(s, s, seed, tile=True, bg=soft_gap(grout, [light, dark]))
     n = 2
     cell = s / n
     for i in range(n):
@@ -433,27 +464,30 @@ def cathedral_marble(seed, light="#e6e0d4", dark="#5a4e48", accent="#a8483a", gr
                         pts.append((x, y))
                     art.ink(chaikin(pts, False, 2), FINE * 0.8, color=vc, alpha=0.6, wob=0.4)
 
-            a.shape(rect(x0 + 3, y0 + 3, x0 + cell - 3, y0 + cell - 3), c, outline=2.8, corner=3, wob=0.4, depth=5, shade_k=0.4, light_k=0.35, ao=0.2, detail=veins)
+            a.shape(rect(x0 + 1.5, y0 + 1.5, x0 + cell - 1.5, y0 + cell - 1.5), c, **J(c), corner=2, wob=0.3, depth=4, shade_k=0.35, light_k=0.3, ao=0.12, detail=veins)
             mx, my = x0 + cell / 2, y0 + cell / 2
             r = cell * 0.28
-            a.shape([(mx, my - r), (mx + r, my), (mx, my + r), (mx - r, my)], rgb(dark) if (i + j) % 2 == 0 else rgb(light), outline=2.4, corner=2, wob=0.3, depth=3, shade_k=0.35, light_k=0.3, ao=0.1)
+            ic = rgb(dark) if (i + j) % 2 == 0 else rgb(light)
+            a.shape([(mx, my - r), (mx + r, my), (mx, my + r), (mx - r, my)], ic, **J(ic), corner=2, wob=0.3, depth=3, shade_k=0.35, light_k=0.3, ao=0.1)
             r2 = r * 0.4
-            a.shape([(mx, my - r2), (mx + r2, my), (mx, my + r2), (mx - r2, my)], rgb(accent), outline=2.0, corner=1.5, wob=0.3, depth=2, shade_k=0.3, light_k=0.3, ao=0.1, mottle=0)
+            a.shape([(mx, my - r2), (mx + r2, my), (mx, my + r2), (mx - r2, my)], rgb(accent), **J(rgb(accent)), corner=1.5, wob=0.3, depth=2, shade_k=0.3, light_k=0.3, ao=0.1, mottle=0)
     return a.image()
 
 
 def inlaid_tiles(seed, base, inlay, grout, n=4):
     """Square tiles with a small contrasting square set at every corner."""
     s = S2
-    a = Art(s, s, seed, tile=True, bg=rgb(grout))
+    a = Art(s, s, seed, tile=True, bg=soft_gap(grout, [base]))
     cell = s / n
     k = cell * 0.2
     for i in range(n):
         for j in range(n):
             x0, y0 = i * cell, j * cell
             pts = [(x0 + k, y0 + 3), (x0 + cell - k, y0 + 3), (x0 + cell - k, y0 + k), (x0 + cell - 3, y0 + k), (x0 + cell - 3, y0 + cell - k), (x0 + cell - k, y0 + cell - k), (x0 + cell - k, y0 + cell - 3), (x0 + k, y0 + cell - 3), (x0 + k, y0 + cell - k), (x0 + 3, y0 + cell - k), (x0 + 3, y0 + k), (x0 + k, y0 + k)]
-            a.shape(pts, vary(a.rng, rgb(base), 0.04), outline=2.6, corner=2, wob=0.3, depth=4, shade_k=0.45, light_k=0.35, ao=0.2)
-            a.shape(rect(x0 - k + 3, y0 - k + 3, x0 + k - 3, y0 + k - 3), vary(a.rng, rgb(inlay), 0.04), outline=2.2, corner=2, wob=0.3, depth=2, shade_k=0.4, light_k=0.3, ao=0.1)
+            bc = vary(a.rng, rgb(base), 0.04)
+            a.shape(pts, bc, **J(bc), corner=2, wob=0.3, depth=3, shade_k=0.4, light_k=0.3, ao=0.12)
+            ic = vary(a.rng, rgb(inlay), 0.04)
+            a.shape(rect(x0 - k + 3, y0 - k + 3, x0 + k - 3, y0 + k - 3), ic, **J(ic), corner=2, wob=0.3, depth=2, shade_k=0.35, light_k=0.25, ao=0.08)
     return a.image()
 
 
@@ -629,9 +663,9 @@ def iron_grate(seed, bar="#5a5c62", under="#141210", n=8):
 
 def ice_floor(seed, base=("#cfe6ee", "#b9d8e4"), grout="#7fa6b8"):
     s = S2
-    a = Art(s, s, seed, tile=True, bg=rgb(grout))
+    a = Art(s, s, seed, tile=True, bg=soft_gap(grout, base))
     for (cx, cy), poly in voronoi_cells(s, s, 4, 4, a.rng, 0.45):
-        p = inset(poly, 2.5)
+        p = inset(poly, 1.8)
         c = vary(a.rng, mix(rgb(base[0]), rgb(base[1]), a.rng.random()), 0.03)
 
         def detail(art, path, cx=cx, cy=cy, c=c):
@@ -641,7 +675,7 @@ def ice_floor(seed, base=("#cfe6ee", "#b9d8e4"), grout="#7fa6b8"):
                 x, y = cx + art.rng.uniform(-50, 50), cy + art.rng.uniform(-50, 50)
                 art.ink([(x, y), (x + 30, y - 12)], FINE * 1.6, color=(250, 252, 255), alpha=0.75, wob=0.1)
 
-        a.shape(p, c, outline=2.6, corner=6, wob=0.6, depth=8, shade_k=0.35, light_k=0.55, ao=0.2, mottle=0.06, detail=detail)
+        a.shape(p, c, **J(c, 1.2), corner=5, wob=0.5, depth=6, shade_k=0.3, light_k=0.5, ao=0.15, mottle=0.06, detail=detail)
     return a.image()
 
 
