@@ -212,16 +212,31 @@ def covered_wagon(seed=1013):
 
 
 def wheelbarrow(seed=1014):
-    w, h = 300, 180
+    """A wheelbarrow from above: the two shafts running from the grips at the
+    back to the wheel at the front (between them), the tray on top, wider at
+    the back and narrowing forward, with its rim and a bit of soil inside."""
+    w, h = 340, 200
     a = Art(w, h, seed)
-    wheel(a, w - 30, h / 2, 70, 18, ang=math.pi / 2)
-    for y in (h / 2 - 40, h / 2 + 40):
-        handle(a, 10, y, 220, h / 2 + (y - h / 2) * 0.5, 10)
-    tray = chaikin([(60, 30), (230, 40), (250, h / 2), (230, h - 40), (60, h - 30)], True, 2)
-    a.shape(tray, WOOD, depth=8, light_k=0.3)
-    a.shape([(80 + (x - 80) * 0.85, h / 2 + (y - h / 2) * 0.8) for x, y in tray], rgb("#5a4030"), outline=DETAIL, corner=0, depth=6, shade_k=0, light_k=0, ao=0.5)
-    return a.image()
+    cy = h / 2
+    # Wheel at the front, between the shaft ends.
+    wheel(a, w - 46, cy, 72, 22, ang=0.0)
+    for side in (-1, 1):
+        handle(a, 14, cy + side * 54, w - 46, cy + side * 18, 11)
+        grip = rect(6, cy + side * 54 - 8, 40, cy + side * 54 + 8)
+        a.shape(grip, rgb("#5a3a22"), outline=DETAIL * 1.4, corner=6, depth=2, mottle=0)
+    a.ink([(w - 46, cy - 20), (w - 46, cy + 20)], DETAIL * 2, color=IRON, taper=False)
+    tray = chaikin([(64, cy - 70), (210, cy - 50), (250, cy - 24), (250, cy + 24), (210, cy + 50), (64, cy + 70)], True, 2)
+    inner = chaikin([(84, cy - 52), (204, cy - 36), (232, cy - 16), (232, cy + 16), (204, cy + 36), (84, cy + 52)], True, 2)
+    a.shape(tray, rgb("#7a8088"), depth=10, light_k=0.45)
+    a.ink([(a_x, a_y) for a_x, a_y in tray], FINE * 1.2, closed=True, color=tint(rgb("#7a8088"), 0.4), alpha=0.6)
 
+    def soil(art, p):
+        art.shape(blob(140, cy + 4, 46, art.rng, 10, 0.2, ry=30), rgb("#6a4e36"), outline=0, smooth=True, depth=3, shade_k=0.3, light_k=0.3, ao=0, mottle=0.12)
+        for _ in range(16):
+            dot(art, art.rng.uniform(100, 190), art.rng.uniform(cy - 24, cy + 30), art.rng.uniform(1.4, 2.6), rgb("#4a3626"), 0.8)
+
+    a.shape(inner, shade(rgb("#7a8088"), 0.35), outline=DETAIL, corner=0, depth=10, shade_k=0, light_k=0, ao=0.55, detail=soil)
+    return a.image()
 
 def cart_wheel(seed=1015):
     s = 220
