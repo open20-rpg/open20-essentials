@@ -412,25 +412,6 @@ def gallows(seed=1043):
     a.shape([(px0 + 52, cy + 10), (px0 + 100, cy + 10), (px0 + 52, cy + 40)], WOOD, outline=DETAIL * 1.2, corner=2, depth=2)  # brace
     return a.image()
 
-def chicken_coop(seed=1044):
-    w, h = 300, 240
-    a = Art(w, h, seed)
-    # A little hut (pitched roof from above) with a fenced run beside it.
-    a.shape(rect(160, 30, w - 10, h - 30), rgb("#d8c9a8"), outline=DETAIL * 1.2, corner=4, depth=4, shade_k=0, light_k=0, ao=0.3)
-    for x in range(170, w, 20):
-        a.ink([(x, 30), (x, h - 30)], FINE, color=shade(rgb("#d8c9a8"), 0.4), alpha=0.6, taper=False)
-    a.ink(rect(160, 30, w - 10, h - 30), DETAIL * 1.2, closed=True, color=WOOD_DARK)
-    roof = rgb("#8a5a3a")
-    a.shape(rect(10, 10, 170, h / 2), roof, corner=4, depth=6, light_k=0.4, detail=lambda art, p: [art.ink([(10, y), (170, y)], FINE, color=shade(roof, 0.5), alpha=0.7, taper=False) for y in range(24, int(h / 2), 14)])
-    a.shape(rect(10, h / 2, 170, h - 10), shade(roof, 0.2), corner=4, depth=6, shade_k=0.6, detail=lambda art, p: [art.ink([(10, y), (170, y)], FINE, color=shade(roof, 0.6), alpha=0.7, taper=False) for y in range(int(h / 2) + 14, h - 10, 14)])
-    a.ink([(10, h / 2), (170, h / 2)], DETAIL * 1.6)
-    for x, y in ((210, 90), (250, 160)):
-        a.shape(ellipse(x, y, 16, 12, 24), rgb("#f2ece0"), outline=DETAIL, depth=2, light_k=0.4, mottle=0)
-        a.shape(ellipse(x + 12, y - 4, 7, 7, 16), rgb("#f2ece0"), outline=FINE * 1.3, depth=1, mottle=0)
-        dot(a, x + 15, y - 9, 3, rgb("#c8443a"))
-    return a.image()
-
-
 def dog_house(seed=1045):
     w, h = 200, 220
     a = Art(w, h, seed)
@@ -539,7 +520,6 @@ TOWN = {
     "Signpost": signpost,
     "Street Lamp": street_lamp,
     "Gallows": gallows,
-    "Chicken Coop": chicken_coop,
     "Dog House": dog_house,
     "Outhouse": outhouse,
     "Laundry Line": laundry_line,
