@@ -383,70 +383,6 @@ def throne_dais(seed=223):
     return a.image()
 
 
-def stone_lion(seed=224):
-    """A stone lion lying like a sphinx, seen from above, as ONE silhouette
-    (mane, forelegs, body and haunches merged) with its details drawn as pen
-    lines inside: the mane's edge, the face, spine, haunch curves, toes."""
-    from pen import to_path
-
-    w, h = 260, 400
-    a = Art(w, h, seed)
-    cx = w / 2
-    stone_block(a, rect(12, 12, w - 12, h - 12), DARK_STONE, corner=8, cracks=0)
-    stone = LIGHT_STONE
-    # The tail, curled along the right flank (under the body).
-    tail = chaikin([(cx + 20, h - 42), (cx + 74, h - 44), (cx + 88, h - 96), (cx + 76, h - 150)], False, 2)
-    a.ink(tail, DETAIL * 3.4, color=INK, taper=False)
-    a.ink(tail, DETAIL * 2.0, color=stone, taper=False)
-    a.shape(scallop(cx + 76, h - 156, 11, a.rng, 6, 0.2), GREY, outline=DETAIL, corner=0, depth=2, mottle=0)
-    parts = [
-        chaikin(rect(cx - 62, 30, cx - 32, 170), True, 3),  # forelegs
-        chaikin(rect(cx + 32, 30, cx + 62, 170), True, 3),
-        ellipse(cx - 50, 34, 22, 16, 28),  # paws
-        ellipse(cx + 50, 34, 22, 16, 28),
-        chaikin([(cx - 50, 170), (cx - 44, 240), (cx - 64, h - 110), (cx - 70, h - 64), (cx - 44, h - 34), (cx + 44, h - 34), (cx + 70, h - 64), (cx + 64, h - 110), (cx + 44, 240), (cx + 50, 170)], True, 3),  # body: slim waist, then haunches
-
-    ]
-    body = to_path(parts[0])
-    for q in parts[1:]:
-        body = skia.Op(body, to_path(q), skia.kUnion_PathOp)
-    a.fill_path(body, stone)
-    line = shade(stone, 0.5)
-    with a.clip(body):
-        glow = skia.Path()
-        glow.addCircle(cx - 40, 130, 120)
-        a.fill_path(glow, tint(stone, 0.3), 0.5, blur=40)
-        a.stroke_path(body, shade(stone, 0.4), 10, 0.35, blur=5)
-        # Paws: toe lines at the front of each foreleg.
-        for side in (-1, 1):
-            x = cx + side * 50
-            for k in (-1, 0, 1):
-                a.ink([(x + k * 9, 20), (x + k * 9, 32)], FINE * 1.3, color=line, alpha=0.85)
-        # Spine and the haunches' curves.
-        a.ink([(cx, 230), (cx + 2, h - 90), (cx, h - 50)], FINE * 1.4, color=line, alpha=0.75)
-        for side in (-1, 1):
-            # Hind legs folded along the flanks.
-            a.ink(chaikin([(cx + side * 28, h - 130), (cx + side * 56, h - 120), (cx + side * 60, h - 60)], False, 2), FINE * 1.3, color=line, alpha=0.7)
-    a.stroke_path(body, INK, OUTLINE * 0.9)
-    # The mane on top: its own outlined shape, strokes radiating; then the head.
-    mane = scallop(cx, 150, 78, a.rng, 15, 0.1)
-
-    def mane_strokes(art, path):
-        for i in range(26):
-            t = 2 * math.pi * i / 26 + art.rng.uniform(-0.05, 0.05)
-            art.ink([(cx + 46 * math.cos(t), 150 + 46 * math.sin(t)), (cx + 72 * math.cos(t), 150 + 72 * math.sin(t))], FINE * 1.2, color=line, alpha=0.75)
-
-    a.shape(mane, shade(stone, 0.12), outline=OUTLINE * 0.85, corner=0, depth=10, light_k=0.35, detail=mane_strokes)
-    if True:
-        # Head (crown seen from above), ears, muzzle toward the front.
-        head = chaikin([(cx - 36, 160), (cx - 32, 118), (cx - 16, 86), (cx + 16, 86), (cx + 32, 118), (cx + 36, 160), (cx, 176)], True, 2)
-        a.shape(head, stone, outline=DETAIL * 1.2, corner=0, depth=5, light_k=0.4, mottle=0.04)
-        for side in (-1, 1):
-            a.shape(ellipse(cx + side * 32, 150, 8, 7, 16), shade(stone, 0.2), outline=DETAIL * 0.9, depth=2, mottle=0)
-        a.shape(ellipse(cx, 88, 11, 7, 20), shade(stone, 0.25), outline=FINE * 1.2, depth=1, mottle=0)
-        a.ink([(cx - 12, 116), (cx, 124), (cx + 12, 116)], FINE * 1.2, color=line, alpha=0.8)
-    return a.image()
-
 def well_stone(seed=225):
     from objects import well
 
@@ -477,7 +413,6 @@ STONE_OBJECTS = {
     "Fountain": fountain,
     "Stone Brazier": stone_brazier,
     "Throne Dais": throne_dais,
-    "Stone Lion": stone_lion,
 }
 
 STONE_COLORABLE = {"Altar"}
