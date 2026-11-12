@@ -52,6 +52,13 @@ def upholstered(a, seat_boxes, back_box, arm_boxes, frame_box, frame=WOOD_DARK, 
         cushion(a, *b, color=hi, tufts=False, corner=14)
 
 
+def furniture_top(a, x0, y0, x1, y1, color, n=2):
+    """A piece of furniture seen straight from above: its top board, with a
+    molded edge (no fronts or drawers: those can't be seen from above)."""
+    board(a, x0, y0, x1, y1, color, n=n, corner=6)
+    a.ink(rect(x0 + 10, y0 + 9, x1 - 10, y1 - 9), FINE * 1.1, closed=True, color=shade(color, 0.5), alpha=0.7, wob=0.4)
+
+
 def bookshelf(seed=10):
     w, h = 512, 170
     a = Art(w, h, seed)
@@ -77,62 +84,39 @@ def tall_shelf(seed=61):
 
 
 def wardrobe(seed=62):
-    w, h = 400, 210
+    w, h = 400, 170
     a = Art(w, h, seed)
-
-    def doors(art, x0, y0, x1, y1):
-        mx = (x0 + x1) / 2
-        art.ink([(mx, y0 - 8), (mx, y1)], DETAIL, alpha=0.9, taper=False)
-        for x in (mx - 14, mx + 14):
-            dot(art, x, (y0 + y1) / 2 - 2, 4, BRASS)
-
-    cabinet(a, 6, 8, w - 6, h - 8, WOOD_DARK, front=0.26, inside=doors, top_n=3)
+    furniture_top(a, 6, 8, w - 6, h - 8, WOOD_DARK, n=3)
     return a.image()
 
 
 def dresser(seed=63):
-    w, h = 360, 190
+    w, h = 360, 160
     a = Art(w, h, seed)
-
-    def drawers(art, x0, y0, x1, y1):
-        n = 3
-        for k in range(1, n):
-            x = x0 + (x1 - x0) * k / n
-            art.ink([(x, y0 - 8), (x, y1)], DETAIL, alpha=0.9, taper=False)
-        for k in range(n):
-            dot(art, x0 + (x1 - x0) * (k + 0.5) / n, (y0 + y1) / 2 - 2, 4, BRASS)
-
-    cabinet(a, 6, 8, w - 6, h - 8, WOOD, front=0.28, inside=drawers)
-    # A small mirror stand and a candle on top.
-    a.shape(ellipse(80, 60, 30, 22, 40), rgb("#b9d3dc"), outline=DETAIL * 1.2, depth=5, light_k=0.6)
-    a.shape(ellipse(w - 70, 55, 10, 10, 20), rgb("#f1e6c8"), outline=DETAIL, depth=3, mottle=0)
+    furniture_top(a, 6, 8, w - 6, h - 8, WOOD, n=2)
+    a.shape(ellipse(80, 72, 34, 26, 40), rgb("#b9d3dc"), outline=DETAIL * 1.2, depth=5, light_k=0.6)
+    a.shape(ellipse(w - 80, 68, 12, 12, 20), rgb("#f1e6c8"), outline=DETAIL, depth=3, mottle=0)
+    a.shape(rect(160, 50, 230, 104), rgb("#3c5a78"), outline=DETAIL, corner=4, depth=4, mottle=0)
+    a.shape(rect(166, 56, 224, 98), PAGES, outline=FINE, corner=2, depth=2, mottle=0, shade_k=0.2, light_k=0)
     return a.image()
 
 
 def nightstand(seed=64):
-    s = 170
+    s = 160
     a = Art(s, s, seed)
-
-    def drawer(art, x0, y0, x1, y1):
-        dot(art, (x0 + x1) / 2, (y0 + y1) / 2 - 2, 4, BRASS)
-
-    cabinet(a, 8, 8, s - 8, s - 8, WOOD, front=0.3, inside=drawer, top_n=1)
-    a.shape(ellipse(58, 52, 16, 16, 24), rgb("#d9c28a"), outline=DETAIL, depth=4)
-    a.shape(ellipse(58, 52, 6, 6, 16), rgb("#fbf0c8"), outline=FINE, depth=2, mottle=0)
+    furniture_top(a, 8, 8, s - 8, s - 8, WOOD, n=1)
+    a.shape(ellipse(62, 62, 18, 18, 24), rgb("#d9c28a"), outline=DETAIL, depth=4)
+    a.shape(ellipse(62, 62, 7, 7, 16), rgb("#fbf0c8"), outline=FINE, depth=2, mottle=0)
+    a.shape(rect(86, 90, 132, 132), rgb("#8a3f37"), outline=DETAIL, corner=3, depth=3, mottle=0)
     return a.image()
 
 
 def cabinet_obj(seed=65):
-    w, h = 300, 190
+    w, h = 300, 160
     a = Art(w, h, seed)
-
-    def doors(art, x0, y0, x1, y1):
-        mx = (x0 + x1) / 2
-        art.ink([(mx, y0 - 8), (mx, y1)], DETAIL, alpha=0.9, taper=False)
-        dot(art, mx - 12, (y0 + y1) / 2 - 2, 3.5, IRON)
-        dot(art, mx + 12, (y0 + y1) / 2 - 2, 3.5, IRON)
-
-    cabinet(a, 6, 8, w - 6, h - 8, WOOD_LIGHT, front=0.28, inside=doors)
+    furniture_top(a, 6, 8, w - 6, h - 8, WOOD_LIGHT, n=2)
+    a.shape(ellipse(70, 70, 20, 20, 28), rgb("#9fb8a8"), outline=DETAIL, depth=4, light_k=0.6)
+    a.shape(ellipse(70, 70, 9, 9, 20), rgb("#b88a5a"), outline=FINE, depth=2, mottle=0)
     return a.image()
 
 
@@ -312,18 +296,22 @@ def runner_rug(seed=78):
 
 
 def bearskin_rug(seed=79):
-    """A bear pelt laid flat (after a real one): small head with snout and
-    ears at the top, front legs spread wide, a broad body, hind legs splayed
-    down, a stub of tail; leather trim around the fur, pale claws."""
+    """A bear pelt laid flat (after a real one). The head is part of the same
+    pelt: snout, skull and ear bumps are all in one outline with the body;
+    muzzle and features are painted on it. Leather trim around the fur."""
+    import skia
+
     w, h = 460, 540
     a = Art(w, h, seed)
     cx = w / 2
     fur = rgb("#7a573c")
     leather = rgb("#c7a77c")
     half = [
-        (cx - 26, 64), (cx - 52, 92), (cx - 74, 112),  # neck to shoulder
-        (cx - 130, 100), (cx - 178, 84), (cx - 208, 82),  # front leg, top edge
-        (cx - 222, 96), (cx - 216, 122), (cx - 196, 134),  # paw
+        (cx - 6, 22), (cx - 16, 28), (cx - 21, 44), (cx - 26, 58),  # snout
+        (cx - 38, 62), (cx - 46, 54), (cx - 54, 58), (cx - 54, 70), (cx - 48, 80),  # skull and ear
+        (cx - 50, 96), (cx - 62, 110), (cx - 84, 116),  # cheek and neck into the shoulder
+        (cx - 130, 102), (cx - 178, 86), (cx - 208, 84),  # front leg, top edge
+        (cx - 222, 98), (cx - 216, 122), (cx - 196, 134),  # paw
         (cx - 150, 140), (cx - 118, 160),  # front leg, under side
         (cx - 116, 210), (cx - 124, 270), (cx - 118, 330),  # body side
         (cx - 136, 384), (cx - 176, 440), (cx - 206, 476),  # hind leg
@@ -334,34 +322,36 @@ def bearskin_rug(seed=79):
     outline = half + tail + [(2 * cx - x, y) for x, y in reversed(half)]
     trim = chaikin(outline, True, 2)
     a.shape(trim, leather, depth=6, shade_k=0.3, light_k=0.2, ao=0.0, mottle=0.04)
-    # The fur: the same shape a little smaller, so the trim shows around it.
     inner = [(cx + (x - cx) * 0.94, 280 + (y - 280) * 0.95) for x, y in trim]
 
-    def fur_strokes(art, path):
+    def fur_and_face(art, path):
         glow = skia.Path()
         glow.addCircle(cx - 20, 230, 150)
         art.fill_path(glow, tint(fur, 0.25), 0.5, blur=60)
         for _ in range(520):
-            x, y = art.rng.uniform(10, w - 10), art.rng.uniform(40, h - 30)
+            x, y = art.rng.uniform(10, w - 10), art.rng.uniform(90, h - 30)
             if not path.contains(x, y):
                 continue
-            # Hair flows from the spine outward and down.
             ang = math.atan2(18 + abs(x - cx) * 0.25, (x - cx) * 0.9 + 0.001)
             ln = art.rng.uniform(8, 14)
             art.ink([(x, y), (x + ln * math.cos(ang), y + ln * math.sin(ang))], FINE * art.rng.uniform(0.7, 1.0), color=shade(fur, art.rng.uniform(0.35, 0.6)), alpha=0.7, wob=0.2)
+        # Muzzle: lighter fur blending in, the nose, eyes, inner ears.
+        muzzle = skia.Path()
+        muzzle.addOval(skia.Rect.MakeXYWH(cx - 20, 30, 40, 40))
+        art.fill_path(muzzle, tint(fur, 0.35), 0.8, blur=8)
+        nose = chaikin([(cx - 9, 34), (cx + 9, 34), (cx + 6, 44), (cx - 6, 44)], True, 2)
+        art.shape(nose, rgb("#2a201c"), outline=FINE, corner=0, depth=1, shade_k=0, light_k=0.3, ao=0, mottle=0)
+        art.ink([(cx, 44), (cx, 54)], FINE * 1.1, color=shade(fur, 0.6), alpha=0.8)
+        for dx in (-18, 18):
+            dot(art, cx + dx, 74, 3.4, rgb("#1f1814"))
+            art.shape(ellipse(cx + dx * 2.6, 66, 6, 6, 16), shade(fur, 0.3), outline=0, depth=1, shade_k=0, light_k=0, ao=0, mottle=0)
+        for _ in range(50):
+            x, y = art.rng.uniform(cx - 50, cx + 50), art.rng.uniform(56, 110)
+            if path.contains(x, y) and abs(x - cx) > 12:
+                t = math.atan2(y - 40, x - cx)
+                art.ink([(x, y), (x + 7 * math.cos(t), y + 7 * math.sin(t))], FINE * 0.8, color=shade(fur, 0.5), alpha=0.6, wob=0.1)
 
-    import skia
-
-    a.shape(inner, fur, outline=DETAIL * 0.8, depth=14, shade_k=0.45, light_k=0.2, ao=0.35, detail=fur_strokes)
-    # Head: skull, snout, nose, eyes, ears.
-    for dx in (-36, 36):
-        a.shape(ellipse(cx + dx * 1.15, 66, 13, 11, 24), shade(fur, 0.1), outline=DETAIL, depth=3, mottle=0)
-    a.shape(chaikin([(cx - 44, 104), (cx - 46, 72), (cx - 26, 52), (cx + 26, 52), (cx + 46, 72), (cx + 44, 104), (cx, 116)], True, 2), fur, outline=DETAIL * 1.2, depth=8, light_k=0.3)
-    a.shape(chaikin([(cx - 24, 62), (cx - 20, 36), (cx, 28), (cx + 20, 36), (cx + 24, 62)], True, 2), tint(fur, 0.15), outline=DETAIL * 1.2, depth=5, light_k=0.3)
-    a.shape(ellipse(cx, 36, 13, 8, 24), rgb("#2c2220"), outline=FINE * 1.2, depth=2, mottle=0)
-    for dx in (-16, 16):
-        dot(a, cx + dx, 80, 3.6, rgb("#1f1814"))
-    # Claws on all four paws.
+    a.shape(inner, fur, outline=DETAIL * 0.8, depth=14, shade_k=0.45, light_k=0.2, ao=0.35, detail=fur_and_face)
     for px, py, ang in ((cx - 206, 108, math.pi * 1.05), (cx + 206, 108, -math.pi * 0.05), (cx - 182, 494, math.pi * 0.62), (cx + 182, 494, math.pi * 0.38)):
         ux, uy = math.cos(ang), math.sin(ang)
         for k in (-1.5, -0.5, 0.5, 1.5):
@@ -369,7 +359,6 @@ def bearskin_rug(seed=79):
             a.ink([(x0, y0), (x0 + 13 * ux, y0 + 13 * uy)], DETAIL * 1.2, color=rgb("#efe6d2"), taper=True)
             a.ink([(x0, y0), (x0 + 13 * ux, y0 + 13 * uy)], FINE * 0.8, color=INK, alpha=0.5, taper=True)
     return a.image()
-
 
 def fireplace(seed=80):
     w, h = 400, 220

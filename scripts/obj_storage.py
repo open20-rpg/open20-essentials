@@ -412,25 +412,27 @@ def sink(seed=122):
 
 
 def wine_rack(seed=123):
-    """A wine rack from above: bottles lying side by side between the rack's
-    rails, necks all pointing one way."""
-    w, h = 400, 260
+    """A wine rack from above: a wooden frame packed with bottles lying side
+    by side, all necks toward the front, corks showing."""
+    w, h = 300, 240
     a = Art(w, h, seed)
     a.shape(rect(8, 8, w - 8, h - 8), WOOD_DARK, corner=8, depth=8)
-    a.shape(rect(26, 22, w - 26, h - 22), shade(WOOD_DARK, 0.35), outline=DETAIL, corner=4, depth=6, shade_k=0, light_k=0, ao=0.5)
+    a.shape(rect(22, 20, w - 22, h - 20), shade(WOOD_DARK, 0.35), outline=DETAIL, corner=4, depth=6, shade_k=0, light_k=0, ao=0.5)
     glass = [rgb("#3f5a3a"), rgb("#5a2a3a"), rgb("#4a5a2e")]
-    for k in range(7):
-        y = 44 + k * 29
+    rows = 6
+    pitch = (h - 44) / rows
+    r = pitch / 2 - 1
+    for k in range(rows):
+        y = 22 + pitch * (k + 0.5)
         col = a.rng.choice(glass)
-        body = rect(52, y - 12, 250, y + 12)
-        a.shape(body, col, outline=DETAIL * 1.1, corner=11, depth=4, light_k=0.6, mottle=0)
-        a.shape(rect(246, y - 6, 300, y + 6), col, outline=DETAIL, corner=5, depth=2, light_k=0.5, mottle=0)
-        a.shape(rect(296, y - 6, 312, y + 6), rgb("#8a2f2f"), outline=FINE * 1.3, corner=3, depth=1, mottle=0)
-        a.ink([(70, y - 6), (220, y - 6)], FINE * 1.2, color=tint(col, 0.6), alpha=0.8, taper=False)
-    for x in (100, 200):
-        a.shape(rect(x - 8, 14, x + 8, h - 14), WOOD, outline=DETAIL * 1.2, corner=3, depth=3)
+        x0 = 30
+        # Body, shoulder and neck, then the cork poking out at the front.
+        body_end = x0 + 150
+        a.shape(rect(x0, y - r, body_end, y + r), col, outline=DETAIL, corner=r * 0.9, depth=3, light_k=0.6, mottle=0)
+        a.shape(rect(body_end - 6, y - r * 0.42, body_end + 52, y + r * 0.42), col, outline=DETAIL * 0.9, corner=r * 0.4, depth=2, light_k=0.5, mottle=0)
+        a.shape(rect(body_end + 48, y - r * 0.38, body_end + 62, y + r * 0.38), rgb("#b88a5a"), outline=FINE * 1.2, corner=2, depth=1, mottle=0)
+        a.ink([(x0 + 14, y - r * 0.5), (body_end - 16, y - r * 0.5)], FINE * 1.2, color=tint(col, 0.6), alpha=0.8, taper=False)
     return a.image()
-
 
 def mug(seed=124):
     s = 90
