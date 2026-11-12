@@ -462,7 +462,7 @@ def tree(seed=16, size=720, greens=FOLIAGE):
     return a.image()
 
 
-def canopy(a, cx, cy, R, greens=FOLIAGE, ink=FOLIAGE_INK, bumps=13, clusters=(0.78, 0.5, 0.22)):
+def canopy(a, cx, cy, R, greens=FOLIAGE, ink=FOLIAGE_INK, bumps=13, clusters=(0.8, 0.6, 0.4, 0.2)):
     """Top-down foliage (trees, bushes): one canopy with gently lobed edge and
     the usual ink outline; inside, only pen lines (short arcs marking leaf
     clusters) over a soft light on the top-left. Returns its outline path."""
@@ -477,20 +477,28 @@ def canopy(a, cx, cy, R, greens=FOLIAGE, ink=FOLIAGE_INK, bumps=13, clusters=(0.
         dim = skia.Path()
         dim.addCircle(cx + R * 0.45, cy + R * 0.45, R * 0.6)
         art.fill_path(dim, dark, 0.45, blur=R * 0.2)
-        # Leaf clusters: arcs open toward the light, in loose rings.
+        # Leaf layers: scalloped pen lines along rings around the center,
+        # bulging outward, of uneven length, with gaps between them.
         for k, rr in enumerate(clusters):
-            count = max(3, int(2 * math.pi * rr * R / (R * 0.24)))
-            rot = art.rng.uniform(0, 6.28)
-            for i in range(count):
-                ang = rot + 2 * math.pi * i / count + art.rng.uniform(-0.12, 0.12)
-                d = rr * R * art.rng.uniform(0.92, 1.05)
-                x, y = cx + d * math.cos(ang), cy + d * math.sin(ang)
-                r = R * art.rng.uniform(0.1, 0.13) * (1.0 if k == 0 else 0.9)
-                # The arc hugs the cluster's shadowed (bottom-right) side.
-                a0 = math.radians(art.rng.uniform(-30, 0))
-                a1 = math.radians(art.rng.uniform(120, 150))
-                pts = [(x + r * math.cos(t), y + r * math.sin(t)) for t in [a0 + (a1 - a0) * j / 12 for j in range(13)]]
-                art.ink(pts, DETAIL * 0.85, color=ink, alpha=0.75, wob=0.4)
+            ang = art.rng.uniform(0, 2 * math.pi)
+            end = ang + 2 * math.pi - 0.2
+            while ang < end:
+                bumps = art.rng.randint(1, 4)
+                bw = art.rng.uniform(0.32, 0.5) / (rr + 0.25)  # angular width of a bump
+                span = min(bumps * bw, end - ang)
+                if span < bw * 0.6:
+                    break
+                base_r = rr * R * art.rng.uniform(0.93, 1.07)
+                h = R * art.rng.uniform(0.045, 0.08)
+                pts = []
+                steps = max(8, int(span * base_r / 4))
+                for j in range(steps + 1):
+                    t = ang + span * j / steps
+                    phase = ((t - ang) / bw) % 1
+                    r = base_r + h * math.sin(math.pi * phase)
+                    pts.append((cx + r * math.cos(t), cy + r * math.sin(t)))
+                art.ink(pts, DETAIL * art.rng.uniform(0.6, 1.0), color=ink, alpha=art.rng.uniform(0.55, 0.85), wob=0.4)
+                ang += span + art.rng.uniform(0.15, 0.6) / (rr + 0.3)
         for _ in range(int(R * 0.2)):
             ang, d = art.rng.uniform(0, 6.28), R * math.sqrt(art.rng.uniform(0, 0.8))
             x, y = cx + d * math.cos(ang), cy + d * math.sin(ang)
@@ -503,7 +511,7 @@ def bush(seed=17, berries=True):
     s = 300
     a = Art(s, s, seed)
     m = s / 2
-    canopy(a, m, m, 118, bumps=9, clusters=(0.7, 0.3))
+    canopy(a, m, m, 118, bumps=9, clusters=(0.72, 0.45, 0.2))
     if berries:
         for _ in range(7):
             ang, r = a.rng.uniform(0, 6.28), a.rng.uniform(15, 95)
