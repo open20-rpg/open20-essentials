@@ -5,8 +5,10 @@ name: release
 # patch, breaking -> major), writes the new version into the pack manifest and
 # build.py, packs pack/ into the .dungeondraft_pack, commits the version back as
 # `chore(release): vX.Y.Z [skip ci]`, tags it and creates the GitHub Release
-# with the pack under a fixed name, so the "latest" link always works:
-#   https://github.com/<repo>/releases/latest/download/Open20-Essentials.dungeondraft_pack
+# with two copies of the pack:
+#   Open20-Essentials.dungeondraft_pack   fixed name, for the "latest" link:
+#     https://github.com/<repo>/releases/latest/download/Open20-Essentials.dungeondraft_pack
+#   open20-essentials-X.Y.Z.dungeondraft_pack
 #
 # To (re)publish the pack of an existing tag, run this workflow by hand with
 # `republish` set to its version: it creates the release if it's missing.

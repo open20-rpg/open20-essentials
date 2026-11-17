@@ -32,9 +32,9 @@ el autor lo apruebe visualmente.
   `pack/open20-essentials.json`, `scripts/build.py` y `package.json`
   (`scripts/bump-version.mjs`). Battle Maps reinstala su copia integrada cuando
   cambia; desactivarlo o desinstalarlo se respeta hasta la próxima versión.
-- Cada release sube el pack una sola vez, con nombre fijo
-  (`Open20-Essentials.dungeondraft_pack`): open20.app y el README enlazan a
-  `releases/latest/download/...`. La versión la dice la release.
+- Cada release sube el pack dos veces: `Open20-Essentials.dungeondraft_pack`
+  (nombre fijo, al que enlazan open20.app y el README vía
+  `releases/latest/download/...`) y `open20-essentials-X.Y.Z.dungeondraft_pack`.
 - Para llevar una versión nueva a Battle Maps: en ese repo,
   `git submodule update --remote src-tauri/resources/open20-essentials` y
   commitear el cambio del submódulo.
