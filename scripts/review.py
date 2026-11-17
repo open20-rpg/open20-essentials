@@ -1,6 +1,6 @@
 """Contact sheets for reviewing the pack: every asset with an ID and its name.
 
-    python3 scripts/builtin-pack/review.py <outdir>
+    python3 scripts/review.py <outdir>
 """
 
 import os

@@ -1,0 +1,15 @@
+{
+  "name": "open20-essentials",
+  "version": "2.2.0",
+  "private": true,
+  "description": "Open20 Essentials: assets para mapas de rol, para Dungeondraft y Open20 Battle Maps.",
+  "type": "module",
+  "scripts": {
+    "draw": "python3 scripts/build.py",
+    "pack": "node scripts/pack.mjs"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.2.4",
+    "@commitlint/config-conventional": "^21.2.4"
+  }
+}

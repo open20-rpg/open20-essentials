@@ -1,7 +1,7 @@
 """Renders every asset in catalog.py into thumbnail atlases plus a JSON index
 for the review page.
 
-    python3 scripts/builtin-pack/make_review.py <outdir>
+    python3 scripts/make_review.py <outdir>
 
 Writes <outdir>/atlas-N.webp (CELL px cells, COLS x ROWS each) and
 <outdir>/assets.json: [{section, kind, items: [{id, name, atlas, x, y,

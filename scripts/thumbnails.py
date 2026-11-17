@@ -1,13 +1,12 @@
 """The pack's own library thumbnails, as packs ship them:
 `thumbnails/<md5 of the texture's res:// path>.png`, cut by the
-usual rules (the ones src-tauri/src/pack/thumbs.rs follows for packs that ship
-none).
+usual rules (the ones Open20 Battle Maps follows for packs that ship none).
 
 Other editors that load the pack would make the missing ones themselves, on
 many threads at once; for a pack of thousands of textures that can crash
 them, so the pack must ship them all to load everywhere.
 
-    python3 scripts/builtin-pack/thumbnails.py   (after build.py drew the pack)
+    python3 scripts/thumbnails.py   (after build.py drew the pack)
 """
 
 import hashlib

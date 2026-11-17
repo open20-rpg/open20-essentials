@@ -1,12 +1,13 @@
-"""Draws the app's built-in asset pack into `src-tauri/resources/builtin/`.
+"""Draws the Open20 Essentials pack into `pack/`.
 
-    npm run pack   (python3 scripts/builtin-pack/build.py)
+    npm run draw   (python3 scripts/build.py)
 
 Every texture is drawn by code (pen.py + the obj_*/tex_* modules, listed in
 catalog.py). The output is the pack's files, unpacked, laid out as in the
 pack (`<id>.json` manifest + `<id>/textures/...`, `<id>/data/...`) and
-committed: drawing takes a while, so CI never does it. build.rs packs that
-folder into the `.dungeondraft_pack` the app embeds. Only files whose bytes
+committed: drawing takes a while, so CI never does it. `npm run pack` turns
+that folder into the `.dungeondraft_pack` (and so does Open20 Battle Maps,
+which includes this repo as a submodule). Only files whose bytes
 changed are rewritten, so a commit shows exactly which assets changed.
 """
 
@@ -30,8 +31,8 @@ PACK = {
     "author": "Open20",
     "keywords": "open20, builtin, essentials",
 }
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-OUT = os.path.join(ROOT, "src-tauri", "resources", "builtin")
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+OUT = os.path.join(ROOT, "pack")
 
 # Object sections become folders and tags (English: pack data, not UI).
 OBJECT_GROUPS = {

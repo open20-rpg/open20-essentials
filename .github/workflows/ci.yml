@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  # Every commit must be a Conventional Commit: semantic-release derives the
+  # version and release notes from them (see AGENTS.md).
+  commits:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: lint PR commits
+        if: github.event_name == 'pull_request'
+        run: npx commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }} --verbose
+      - name: lint pushed commits
+        if: github.event_name == 'push'
+        env:
+          BEFORE: ${{ github.event.before }}
+        # After a force push or on a new branch "before" isn't in the history:
+        # then only the last commit can be checked.
+        run: |
+          if git merge-base --is-ancestor "$BEFORE" HEAD 2>/dev/null; then
+            npx commitlint --from "$BEFORE" --to HEAD --verbose
+          else
+            npx commitlint --last --verbose
+          fi
+
+  # The pack must still pack (drawing it is local only: it takes too long).
+  pack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - run: node scripts/pack.mjs

@@ -1,0 +1,77 @@
+name: release
+
+# Releases are automated with semantic-release on every push to `main`: it
+# reads the Conventional Commits since the last tag (feat -> minor, fix/perf ->
+# patch, breaking -> major), writes the new version into the pack manifest and
+# build.py, packs pack/ into the .dungeondraft_pack, commits the version back as
+# `chore(release): vX.Y.Z [skip ci]`, tags it and creates the GitHub Release
+# with two copies of the pack:
+#   Open20-Essentials.dungeondraft_pack   fixed name, for the "latest" link:
+#     https://github.com/<repo>/releases/latest/download/Open20-Essentials.dungeondraft_pack
+#   open20-essentials-X.Y.Z.dungeondraft_pack
+#
+# To (re)publish the pack of an existing tag, run this workflow by hand with
+# `republish` set to its version: it creates the release if it's missing.
+#
+# semantic-release runs through `npx` with pinned versions instead of being a
+# devDependency: it bundles its own npm, whose dependencies trip `npm audit`.
+
+on:
+  workflow_dispatch:
+    inputs:
+      republish:
+        description: "Publish the pack of an existing tag (version, e.g. 2.2.0) instead of releasing"
+        required: false
+        default: ""
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: inputs.republish == '' || inputs.republish == null
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - name: semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >
+          npx --yes
+          -p semantic-release@25.0.9
+          -p @semantic-release/exec@7.1.0
+          -p @semantic-release/git@11.0.1
+          -p conventional-changelog-conventionalcommits@9.3.1
+          semantic-release
+
+  republish:
+    if: inputs.republish != '' && inputs.republish != null
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAG: v${{ inputs.republish }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: v${{ inputs.republish }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - run: node scripts/pack.mjs
+      - name: upload to the release
+        run: |
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "$TAG" --notes "Open20 Essentials $TAG."
+          gh release upload "$TAG" dist/*.dungeondraft_pack --clobber
