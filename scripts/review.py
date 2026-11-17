@@ -16,7 +16,7 @@ import numpy as np
 
 
 def recolor(img, color):
-    """Dungeondraft's colorable-object shader (as recolor.rs): reddish pixels
+    """The colorable-object recolor (as recolor.rs): reddish pixels
     with g ~= b take `color`, scaled by their red channel."""
     a = np.asarray(img.convert("RGBA")).astype(np.float32) / 255
     r, g, b = a[..., 0], a[..., 1], a[..., 2]

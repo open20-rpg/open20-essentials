@@ -117,7 +117,7 @@ def render(job):
         floor, wall = img
         parts = [(f"textures/caves/{name}/floor.webp", floor), (f"textures/caves/{name}/wall.webp", wall)]
     elif kind == "material":
-        # Dungeondraft's naming: the editor finds the border by swapping
+        # Pack naming convention: editors find the border by swapping
         # "_tile" for "_border" in the tile's name.
         tile, border = img
         parts = [(f"textures/materials/{name}_tile.webp", tile), (f"textures/materials/{name}_border.webp", border)]
@@ -162,7 +162,7 @@ def main():
             if colorable:
                 tags["Colorable"].append(rel)
     files["data/default.dungeondraft_tags"] = json.dumps({"tags": tags, "sets": {}}, indent=1).encode()
-    # Shipped, not left to Dungeondraft: making thousands itself crashes it.
+    # Shipped, not left to the loading editor: some crash making thousands.
     files.update(thumbnail_files(files, PACK_ID))
     write_dir(files)
 

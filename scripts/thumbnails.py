@@ -1,11 +1,11 @@
 """The pack's own library thumbnails, as packs ship them:
-`thumbnails/<md5 of the texture's res:// path>.png`, cut by Dungeondraft's
-rules (the ones src-tauri/src/pack/thumbs.rs follows for packs that ship
+`thumbnails/<md5 of the texture's res:// path>.png`, cut by the
+usual rules (the ones src-tauri/src/pack/thumbs.rs follows for packs that ship
 none).
 
-Dungeondraft makes the missing ones itself while loading a pack, on many
-threads at once; for a pack of thousands of textures that crashes it (heap
-corruption in its image code), so the pack must ship them all.
+Other editors that load the pack would make the missing ones themselves, on
+many threads at once; for a pack of thousands of textures that can crash
+them, so the pack must ship them all to load everywhere.
 
     python3 scripts/builtin-pack/thumbnails.py   (after build.py drew the pack)
 """

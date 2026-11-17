@@ -1,4 +1,4 @@
-"""Materials for the Material brush, as Dungeondraft's (textures/materials/):
+"""Materials for the Material brush, as packs ship them (textures/materials/):
 each one a seamless tile texture plus a border strip drawn along the edge of
 whatever is painted with it. The tiles are the pack's own grounds (terrains
 and floors, made opaque); the borders are drawn here in the same inked style.
