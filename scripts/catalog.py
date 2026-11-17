@@ -52,6 +52,7 @@ SOURCES = [
     ("tex_roofs2", "ROOFS2", None, "Techos (más)", "roof", "TD"),
     ("tex_caves2", "CAVES2", None, "Cuevas (más)", "cave", "CV"),
     ("tex_caves2", "LIGHTS2", None, "Luces (más)", "light", "LV"),
+    ("tex_materials", "MATERIALS", None, "Materiales", "material", "MA"),
 ]
 
 

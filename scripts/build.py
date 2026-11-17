@@ -26,7 +26,7 @@ PACK = {
     "name": "Open20 Essentials",
     "id": PACK_ID,
     # Bump to reinstall it for users that have an older one (see builtin.rs).
-    "version": "2.1.0",
+    "version": "2.2.0",
     "author": "Open20",
     "keywords": "open20, builtin, essentials",
 }
@@ -116,6 +116,11 @@ def render(job):
     elif kind == "cave":
         floor, wall = img
         parts = [(f"textures/caves/{name}/floor.webp", floor), (f"textures/caves/{name}/wall.webp", wall)]
+    elif kind == "material":
+        # Dungeondraft's naming: the editor finds the border by swapping
+        # "_tile" for "_border" in the tile's name.
+        tile, border = img
+        parts = [(f"textures/materials/{name}_tile.webp", tile), (f"textures/materials/{name}_border.webp", border)]
     elif kind == "roof":
         parts = [(f"textures/roofs/{name}/{part}.webp", im) for part, im in zip(("tiles", "edge", "ridge", "hip"), img)]
     else:

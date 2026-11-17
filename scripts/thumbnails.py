@@ -25,7 +25,7 @@ STRIP_WIDTH = 228  # widest a wall or path strip thumbnail gets
 def rule_for(rel):
     """How a texture's thumbnail is cut, by its category (`textures/<category>/…`)."""
     category = rel.split("/")[1] if rel.count("/") >= 1 else ""
-    if category in ("tilesets", "patterns"):
+    if category in ("tilesets", "patterns", "materials"):
         return ("tile", CELL_PX)
     if category == "walls":
         return ("strip", 32)
