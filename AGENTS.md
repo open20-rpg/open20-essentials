@@ -44,8 +44,8 @@ el autor lo apruebe visualmente.
 - **Conventional Commits** en todos los commits (`feat:`, `fix:`, `docs:`…):
   definen la versión (feat → minor, fix/perf → patch). commitlint los valida
   en CI.
-- **Commits: solo a nombre del autor del repo** (Pablo Androetto
-  <androettop@gmail.com>). Ni los commits ni los PR llevan trailers ni líneas
+- **Commits a nombre de quien los hace** (el `user.name` y `user.email`
+  configurados en git). Ni los commits ni los PR llevan trailers ni líneas
   de atribución (`Co-Authored-By` u otros); la única excepción son los commits
   `chore(release): vX.Y.Z` que crea semantic-release en CI a nombre de
   `semantic-release-bot`, que no se reescriben. Esta regla tiene prioridad
