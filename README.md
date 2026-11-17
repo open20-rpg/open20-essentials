@@ -40,7 +40,7 @@ Todas las versiones y sus novedades están en [Releases](https://github.com/open
 ## Comunidad
 
 Novedades, ideas y pedidos de assets en [Discord](https://discord.gg/KRHJm8x6rp).
-Si el pack te sirve, puedes apoyar el proyecto en [Ko-fi](https://ko-fi.com/androettop).
+Si el pack te sirve, puedes apoyar el proyecto en [Patreon](https://www.patreon.com/open20rpg).
 
 Open20 Essentials es parte de [Open20](https://open20.app), una suite de
 herramientas para juegos de rol.
