@@ -23,8 +23,7 @@
       "@semantic-release/github",
       {
         "assets": [
-          { "path": "dist/Open20-Essentials.dungeondraft_pack", "label": "Open20-Essentials.dungeondraft_pack (última versión)" },
-          { "path": "dist/open20-essentials-*.dungeondraft_pack" }
+          { "path": "dist/Open20-Essentials.dungeondraft_pack" }
         ],
         "successComment": false,
         "failComment": false,

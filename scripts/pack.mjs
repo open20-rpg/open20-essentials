@@ -4,7 +4,6 @@
 // left zero, which the format allows.
 //
 //   node scripts/pack.mjs   ->  dist/Open20-Essentials.dungeondraft_pack
-//                               dist/open20-essentials-<version>.dungeondraft_pack
 import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs"
 import { join, relative, sep } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -47,7 +46,5 @@ const out = Buffer.concat([header, ...index, ...datas])
 
 const { version } = JSON.parse(readFileSync(join(SRC, "open20-essentials.json"), "utf8"))
 mkdirSync(DIST, { recursive: true })
-for (const name of ["Open20-Essentials.dungeondraft_pack", `open20-essentials-${version}.dungeondraft_pack`]) {
-  writeFileSync(join(DIST, name), out)
-}
+writeFileSync(join(DIST, "Open20-Essentials.dungeondraft_pack"), out)
 console.log(`packed ${files.length} files, ${(out.length / 1e6).toFixed(1)} MB, v${version}`)
