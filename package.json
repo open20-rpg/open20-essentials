@@ -2,6 +2,7 @@
   "name": "open20-essentials",
   "version": "2.2.1",
   "private": true,
+  "license": "MIT AND CC-BY-4.0",
   "description": "Open20 Essentials: assets para mapas de rol, para Dungeondraft y Open20 Battle Maps.",
   "type": "module",
   "scripts": {

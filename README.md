@@ -45,6 +45,12 @@ Si el pack te sirve, puedes apoyar el proyecto en [Ko-fi](https://ko-fi.com/andr
 Open20 Essentials es parte de [Open20](https://open20.app), una suite de
 herramientas para juegos de rol.
 
+## Licencia
+
+Los assets están bajo [CC BY 4.0](LICENSE-ASSETS.md): puedes usarlos en tus
+mapas, también comerciales, dando crédito a Open20 Essentials. El código del
+generador tiene licencia [MIT](LICENSE).
+
 ---
 
 Open20 Essentials es un proyecto independiente, sin afiliación con Dungeondraft
