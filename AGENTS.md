@@ -42,8 +42,16 @@ el autor lo apruebe visualmente.
 ## Commits
 
 - **Conventional Commits** en todos los commits (`feat:`, `fix:`, `docs:`…):
-  definen la versión (feat → minor, fix/perf → patch). commitlint los valida
-  en CI.
+  definen la versión con las reglas de toda la suite
+  ([open20-release](https://github.com/open20-rpg/open20-release)):
+  `feat`/`fix`/`perf` → patch, breaking → minor. commitlint los valida en CI.
+- El asunto de cada `feat` (**Nuevo**), `perf` (**Mejora**) y `fix`
+  (**Corrección**) **es** la línea de las notas de la versión y del anuncio
+  en Discord: en español y para quien usa el pack. Lo interno (scripts,
+  workflows, docs) va con `ci:`/`chore:`/`docs:` aunque arregle algo.
+- **Nunca trabajes en `main`**: cada push publica una versión y la anuncia en
+  Discord. Trabajá en una rama propia (`feat/…`, `fix/…`) y no mergees sin que
+  te lo pidan.
 - **Commits a nombre de quien los hace** (el `user.name` y `user.email`
   configurados en git). Ni los commits ni los PR llevan trailers ni líneas
   de atribución (`Co-Authored-By` u otros); la única excepción son los commits
