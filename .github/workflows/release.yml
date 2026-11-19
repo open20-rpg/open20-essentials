@@ -63,6 +63,8 @@ jobs:
           tag: ${{ steps.release.outputs.tag }}
           title: Open20 Essentials
           download: https://open20.app/essentials
+          banner-background: .github/discord-banner.jpg
+          banner-icon: .github/discord-banner-icon.svg
           bot-token: ${{ secrets.DISCORD_BOT_TOKEN }}
 
   republish:
