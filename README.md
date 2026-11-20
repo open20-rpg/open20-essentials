@@ -5,7 +5,7 @@
 **Más de 2.000 assets para tus mapas de rol**, todos en el mismo estilo.<br />
 Gratis, para Dungeondraft y para Open20 Battle Maps.
 
-[**Descargar**](https://github.com/open20-rpg/open20-essentials/releases/latest/download/Open20-Essentials.dungeondraft_pack) · [open20.app](https://open20.app/essentials) · [Discord](https://discord.gg/KRHJm8x6rp)
+[**Descargar**](https://github.com/open20-rpg/open20-essentials/releases/latest/download/Open20-Essentials.dungeondraft_pack) · [open20.app](https://open20.app/essentials) · [Discord](https://open20.app/dc)
 
 <br />
 
@@ -39,7 +39,7 @@ Todas las versiones y sus novedades están en [Releases](https://github.com/open
 
 ## Comunidad
 
-Novedades, ideas y pedidos de assets en [Discord](https://discord.gg/KRHJm8x6rp).
+Novedades, ideas y pedidos de assets en [Discord](https://open20.app/dc).
 Si el pack te sirve, puedes apoyar el proyecto en [Patreon](https://www.patreon.com/open20rpg).
 
 Open20 Essentials es parte de [Open20](https://open20.app), una suite de
